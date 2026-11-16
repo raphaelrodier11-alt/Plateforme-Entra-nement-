@@ -165,8 +165,11 @@ export interface Objet3D {
   forme: 'sphere' | 'boite' | 'cylindre' | 'tore' | 'tube' | 'cone';
   /** Position du centre [x, y, z]. Pour `tube` : ignorée, voir `chemin`. */
   position?: [number, number, number];
-  /** Dimensions [x, y, z] (rayon en x pour sphère, cylindre, tore, cône). */
-  taille?: [number, number, number];
+  /**
+   * Dimensions : [rayon] pour une sphère ou un tube, [rayon, hauteur] pour un
+   * cylindre ou un cône, [rayon, épaisseur] pour un tore, [x, y, z] pour une boîte.
+   */
+  taille?: number[];
   rotation?: [number, number, number];
   /** Points de passage d'un tube. */
   chemin?: [number, number, number][];
