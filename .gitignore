@@ -1,0 +1,14 @@
+node_modules/
+dist/
+dev-dist/
+.wrangler/
+.dev.vars
+*.local
+.env
+.env.*
+coverage/
+# Données de cours : rien de ce qui vient du drive ne doit entrer dans le dépôt (public).
+pipeline/.cache/
+*.pdf
+*.docx
+*.pptx

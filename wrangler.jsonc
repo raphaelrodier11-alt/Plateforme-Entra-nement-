@@ -1,0 +1,22 @@
+// Configuration Cloudflare : un seul Worker sert l'application (fichiers
+// statiques de ./dist) et l'API (/api/*), adossé à une base D1 (SQLite).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dr-rodier",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // Sans identifiant, la base est créée automatiquement au premier déploiement.
+  "d1_databases": [{ "binding": "DB", "database_name": "dr-rodier" }],
+  "vars": {
+    // Dépôt GitHub (« propriétaire/nom ») pour lancer le pipeline à la demande.
+    "GITHUB_REPO": "",
+    "GITHUB_BRANCHE": "main"
+  },
+  "observability": { "enabled": true }
+}
