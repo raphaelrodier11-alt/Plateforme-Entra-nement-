@@ -166,7 +166,6 @@ function Entrainement({
       void terminerSession(session, scoreSession(session.questionIds, tentatives).points);
     }
     // À vérifier une seule fois, à l'ouverture.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const question = questions[indice]!;
@@ -178,7 +177,6 @@ function Entrainement({
     etatAvant.current = etats.get(question.id);
     haut.current?.scrollIntoView({ block: 'start' });
     // L'état « avant » ne doit être relevé qu'au changement de question.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [question.id]);
 
   const valider = async (r: ReponseDonnee) => {
@@ -354,7 +352,6 @@ function Examen({ session, questions }: { session: Session; questions: Question[
   // Fin du temps : la copie est rendue automatiquement.
   useEffect(() => {
     if (restant !== undefined && restant <= 0) void rendre();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restant !== undefined && restant <= 0]);
 
   const question = questions[indice]!;

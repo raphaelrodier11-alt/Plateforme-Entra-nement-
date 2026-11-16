@@ -278,21 +278,57 @@ function SectionCalendrier({ reglages }: { reglages: TypeReglages }) {
   );
 }
 
+/** Nombre saisi dans un champ, ou `undefined` si le champ est vide ou invalide. */
+function nombreSaisi(texte: string): number | undefined {
+  const n = Number(texte.replace(',', '.'));
+  return texte.trim() && Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
 function SectionIa({ reglages }: { reglages: TypeReglages }) {
+  const tarif = (role: string) => reglages.tarifs?.find((t) => t.modele === role);
   const [masse, setMasse] = useState(reglages.modeleMasse ?? '');
   const [expert, setExpert] = useState(reglages.modeleExpert ?? '');
+  const [plafond, setPlafond] = useState(reglages.plafondMensuelUsd?.toString() ?? '');
+  const [prix, setPrix] = useState({
+    masseEntree: tarif('masse')?.entreeUsdParM.toString() ?? '',
+    masseSortie: tarif('masse')?.sortieUsdParM.toString() ?? '',
+    expertEntree: tarif('expert')?.entreeUsdParM.toString() ?? '',
+    expertSortie: tarif('expert')?.sortieUsdParM.toString() ?? '',
+  });
   const [enregistre, setEnregistre] = useState(false);
 
   const sauver = async () => {
+    const tarifs = (['masse', 'expert'] as const).flatMap((role) => {
+      const entree = nombreSaisi(prix[`${role}Entree`]);
+      const sortie = nombreSaisi(prix[`${role}Sortie`]);
+      return entree !== undefined && sortie !== undefined
+        ? [{ modele: role, entreeUsdParM: entree, sortieUsdParM: sortie, aVerifier: false }]
+        : [];
+    });
     await enregistrer('reglages', {
       ...reglages,
       modeleMasse: masse.trim() || undefined,
       modeleExpert: expert.trim() || undefined,
+      plafondMensuelUsd: nombreSaisi(plafond),
+      tarifs: tarifs.length ? tarifs : undefined,
       majLe: Date.now(),
     });
     setEnregistre(true);
     setTimeout(() => setEnregistre(false), 2000);
   };
+
+  const champPrix = (cle: keyof typeof prix, libelle: string) => (
+    <label className="block text-sm">
+      <span className="mb-1 block text-xs text-muet">{libelle}</span>
+      <input
+        inputMode="decimal"
+        value={prix[cle]}
+        onChange={(e) => setPrix({ ...prix, [cle]: e.target.value })}
+        placeholder="par défaut"
+        className={`${STYLE_CHAMP} chiffres`}
+      />
+    </label>
+  );
 
   return (
     <Carte titre="Intelligence artificielle (Gemini)">
@@ -311,7 +347,36 @@ function SectionIa({ reglages }: { reglages: TypeReglages }) {
           <input value={expert} onChange={(e) => setExpert(e.target.value)} placeholder="automatique" className={STYLE_CHAMP} />
         </label>
       </div>
-      <Bouton className="mt-3" icone={enregistre ? Check : undefined} onClick={() => void sauver()}>
+
+      <h3 className="mt-5 mb-1 text-sm font-medium">Plafond de dépense</h3>
+      <p className="mb-2 text-xs text-muet">
+        Au-delà de ce montant dans le mois, la génération se met en pause. Vide : deux fois
+        l'estimation que tu as approuvée (3 $ au minimum).
+      </p>
+      <label className="block max-w-48 text-sm">
+        <span className="mb-1 block text-xs text-muet">Plafond mensuel, en dollars</span>
+        <input
+          inputMode="decimal"
+          value={plafond}
+          onChange={(e) => setPlafond(e.target.value)}
+          placeholder="automatique"
+          className={`${STYLE_CHAMP} chiffres`}
+        />
+      </label>
+
+      <h3 className="mt-5 mb-1 text-sm font-medium">Tarifs, en dollars par million de tokens</h3>
+      <p className="mb-2 text-xs text-muet">
+        Les tarifs par défaut sont des ordres de grandeur prudents. Pour une estimation exacte,
+        recopie ceux de la page officielle de Google (ai.google.dev/gemini-api/docs/pricing).
+      </p>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {champPrix('masseEntree', 'Masse, lus')}
+        {champPrix('masseSortie', 'Masse, écrits')}
+        {champPrix('expertEntree', 'Expert, lus')}
+        {champPrix('expertSortie', 'Expert, écrits')}
+      </div>
+
+      <Bouton className="mt-4" icone={enregistre ? Check : undefined} onClick={() => void sauver()}>
         {enregistre ? 'Enregistré' : 'Enregistrer'}
       </Bouton>
       <p className="mt-2 text-xs text-muet">

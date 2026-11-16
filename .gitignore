@@ -12,3 +12,5 @@ pipeline/.cache/
 *.pdf
 *.docx
 *.pptx
+wrangler.deploiement.json
+secrets.json

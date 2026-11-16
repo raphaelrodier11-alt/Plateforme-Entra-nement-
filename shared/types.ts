@@ -40,6 +40,11 @@ export interface Chapitre {
   nouveau?: boolean;
   /** Erratums validés sur les fichiers sources (jamais écrits dans le drive). */
   erratums?: string[];
+  /** Marqueurs du pipeline : fiche et QCM à (re)générer, erreurs à rechercher. */
+  aGenerer?: boolean;
+  aVerifier?: boolean;
+  /** Date de création, pour retirer le badge « nouveau » au bout de deux semaines. */
+  creeLe?: number;
   version: number;
   demo?: boolean;
 }
@@ -76,6 +81,8 @@ export interface Fichier {
   chapitreId?: string;
   partielId?: string;
   lien?: string;
+  /** Nombre d'échecs de traitement ; au-delà de 3, le fichier est laissé de côté. */
+  echecs?: number;
 }
 
 export interface Partiel {
@@ -392,6 +399,9 @@ export interface EtatPipeline {
   nbChapitres?: number;
   nbQuestions?: number;
   driveConnecte?: boolean;
+  /** Dépense d'IA cumulée sur le mois en cours (AAAA-MM), en dollars. */
+  depense?: { mois: string; usd: number };
+  modeles?: { masse: string; expert: string };
 }
 
 // ---------------------------------------------------------------------------
@@ -491,7 +501,10 @@ export interface Reglages {
   dossierAnnales?: string;
   modeleMasse?: string;
   modeleExpert?: string;
+  /** Tarifs imposés, par rôle : `modele` vaut « masse » ou « expert ». */
   tarifs?: TarifModele[];
+  /** Plafond de dépense d'IA par mois, en dollars (sinon calculé d'après l'estimation). */
+  plafondMensuelUsd?: number;
   majLe?: number;
 }
 
@@ -516,4 +529,28 @@ export interface RevueFlash {
   /** Nombre de réussites consécutives. */
   serie: number;
   echeance: number;
+}
+
+// ---------------------------------------------------------------------------
+// Données internes au pipeline (jamais envoyées aux appareils)
+// ---------------------------------------------------------------------------
+
+export interface PageTexte {
+  /** Numéro de page (ou de diapositive), à partir de 1. */
+  n: number;
+  texte: string;
+  /** `couche` : texte présent dans le fichier ; `ocr` : lu par l'IA ; `vide` : rien d'exploitable. */
+  source: 'couche' | 'ocr' | 'vide';
+}
+
+/** Texte extrait d'un fichier du drive, page par page. */
+export interface TexteFichier {
+  /** Identifiant du fichier, suivi de « #n » si le texte est découpé en plusieurs documents. */
+  id: string;
+  fichierId: string;
+  /** Version du fichier (date de modification) à laquelle correspond ce texte. */
+  version: string;
+  pages: PageTexte[];
+  /** Pages sans texte exploitable, à faire lire par l'IA (scans, images). */
+  pagesAOcr: number[];
 }

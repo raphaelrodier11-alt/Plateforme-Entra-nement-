@@ -1,0 +1,82 @@
+name: Déploiement
+
+# Met l'application en ligne sur Cloudflare à chaque modification de la
+# branche principale, ou à la demande (onglet Actions → Déploiement → Run workflow).
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploiement
+  cancel-in-progress: false
+
+jobs:
+  deployer:
+    name: Mise en ligne
+    if: github.event_name == 'workflow_dispatch' || github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PIPELINE_KEY: ${{ secrets.PIPELINE_KEY }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      GITHUB_DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+    steps:
+      - name: Vérifier la configuration
+        id: config
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Secrets Cloudflare absents : rien n'est déployé. Voir le README, étape « Cloudflare »."
+            echo "pret=non" >> "$GITHUB_OUTPUT"
+          else
+            echo "pret=oui" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        if: steps.config.outputs.pret == 'oui'
+      - uses: actions/setup-node@v5
+        if: steps.config.outputs.pret == 'oui'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer, tester et construire
+        if: steps.config.outputs.pret == 'oui'
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: Préparer la clé du pipeline et la base de données
+        if: steps.config.outputs.pret == 'oui'
+        run: |
+          ./scripts/contexte-actions.sh
+          node scripts/config-deploiement.cjs
+
+      - name: Déployer sur Cloudflare
+        if: steps.config.outputs.pret == 'oui'
+        run: |
+          set -o pipefail
+          # L'adresse de l'app est retirée du journal, qui est public.
+          npx wrangler deploy --config wrangler.deploiement.json \
+            --var "GITHUB_REPO:${{ github.repository }}" \
+            --var "GITHUB_BRANCHE:${{ github.event.repository.default_branch }}" 2>&1 |
+            sed -E 's#https://[A-Za-z0-9.-]+\.workers\.dev#https://(adresse masquée)#g'
+
+      - name: Transmettre les secrets au serveur
+        if: steps.config.outputs.pret == 'oui'
+        run: |
+          node -e '
+            const noms = ["PIPELINE_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GITHUB_DISPATCH_TOKEN"];
+            const secrets = Object.fromEntries(noms.filter((n) => process.env[n]).map((n) => [n, process.env[n]]));
+            require("fs").writeFileSync("secrets.json", JSON.stringify(secrets));
+            console.log("Secrets transmis :", Object.keys(secrets).join(", "));
+          '
+          npx wrangler secret bulk secrets.json --config wrangler.deploiement.json > /dev/null
+          rm -f secrets.json
+          echo "::notice::Application déployée. Son adresse se trouve dans le tableau de bord Cloudflare : Workers & Pages → dr-rodier."

@@ -1,0 +1,78 @@
+name: Import du drive
+
+# Passe toutes les heures : vérifie le drive une fois par semaine (ou à la
+# demande), puis traite ce qui a été validé dans l'app. La plupart des
+# passages ne trouvent rien à faire et s'arrêtent en quelques secondes.
+# Les journaux sont publics : ils ne contiennent ni noms de fichiers ni
+# contenu de cours.
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'auto : traitement normal. scan : forcer la vérification du drive.'
+        type: choice
+        options: [auto, scan]
+        default: auto
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: pipeline
+  cancel-in-progress: false
+
+jobs:
+  passage:
+    name: Passage du pipeline
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PIPELINE_KEY: ${{ secrets.PIPELINE_KEY }}
+      APP_URL: ${{ vars.APP_URL }}
+    steps:
+      - name: Vérifier la configuration
+        id: config
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Secrets Cloudflare absents : le pipeline ne fait rien. Voir le README."
+            echo "pret=non" >> "$GITHUB_OUTPUT"
+          else
+            echo "pret=oui" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        if: steps.config.outputs.pret == 'oui'
+      - uses: actions/setup-node@v5
+        if: steps.config.outputs.pret == 'oui'
+        with:
+          node-version: 22
+          cache: npm
+      - name: Installer les dépendances
+        if: steps.config.outputs.pret == 'oui'
+        run: npm ci
+
+      - name: Préparer l'adresse de l'app et la clé
+        if: steps.config.outputs.pret == 'oui'
+        run: ./scripts/contexte-actions.sh avec-adresse
+
+      - name: Lancer le pipeline
+        if: steps.config.outputs.pret == 'oui'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PIPELINE_MODE: ${{ inputs.mode || 'auto' }}
+          PIPELINE_BUDGET_MIN: '50'
+        run: npm run pipeline
+
+      # GitHub suspend les tâches planifiées d'un dépôt resté 60 jours sans
+      # activité : réactiver le workflow à chaque passage évite cette suspension.
+      - name: Garder la planification active
+        if: always() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/pipeline.yml/enable" || true
