@@ -17,6 +17,7 @@ import {
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { BlocFiche, Fiche, NoeudArbre } from '../../shared/types';
 import { Bouton, cx } from '../composants/ui';
+import { FournisseurAnnotations, Surlignable } from './Annotations';
 
 // three.js est volumineux : la scène 3D n'est chargée qu'à l'ouverture.
 const Scene3DVue = lazy(() => import('./Scene3D'));
@@ -50,13 +51,13 @@ function Encadre({
   );
 }
 
-function Liste({ elements }: { elements: string[] }) {
+function Liste({ elements, cle }: { elements: string[]; cle: string }) {
   return (
     <ul className="space-y-1.5 text-sm">
       {elements.map((e, i) => (
         <li key={i} className="flex gap-2.5">
           <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent" aria-hidden />
-          <span>{e}</span>
+          <Surlignable cle={`${cle}:${i}`}>{e}</Surlignable>
         </li>
       ))}
     </ul>
@@ -331,27 +332,31 @@ function Etapes({ etapes }: { etapes: { titre: string; detail: string }[] }) {
   );
 }
 
-function Bloc({ bloc }: { bloc: BlocFiche }) {
+function Bloc({ bloc, cle }: { bloc: BlocFiche; cle: string }) {
   switch (bloc.type) {
     case 'texte':
-      return <p className="text-sm leading-relaxed whitespace-pre-line text-texte-2">{bloc.contenu}</p>;
+      return (
+        <p className="text-sm leading-relaxed whitespace-pre-line text-texte-2">
+          <Surlignable cle={cle}>{bloc.contenu}</Surlignable>
+        </p>
+      );
     case 'liste':
       return (
         <div>
           {bloc.titre && <h4 className="mb-2 text-sm font-semibold">{bloc.titre}</h4>}
-          <Liste elements={bloc.elements} />
+          <Liste elements={bloc.elements} cle={cle} />
         </div>
       );
     case 'cles':
       return (
         <Encadre icone={<KeyRound size={14} className="text-accent-clair" aria-hidden />} titre="À retenir" ton="accent">
-          <Liste elements={bloc.elements} />
+          <Liste elements={bloc.elements} cle={cle} />
         </Encadre>
       );
     case 'pieges':
       return (
         <Encadre icone={<TriangleAlert size={14} className="text-alerte" aria-hidden />} titre="Pièges classiques" ton="alerte">
-          <Liste elements={bloc.elements} />
+          <Liste elements={bloc.elements} cle={cle} />
         </Encadre>
       );
     case 'arbre':
@@ -399,17 +404,19 @@ export function RenduFiche({ fiche, filtre }: { fiche: Fiche; filtre?: (bloc: Bl
     .map((s) => ({ ...s, blocs: filtre ? s.blocs.filter(filtre) : s.blocs }))
     .filter((s) => s.blocs.length > 0);
   return (
+    <FournisseurAnnotations chapitreId={fiche.chapitreId}>
     <div className="space-y-4">
       {sections.map((section) => (
         <section key={section.id} id={section.id} className="carte scroll-mt-4 p-4 sm:p-5">
           <h3 className="mb-3 text-base font-semibold">{section.titre}</h3>
           <div className="space-y-4">
             {section.blocs.map((bloc, i) => (
-              <Bloc key={i} bloc={bloc} />
+              <Bloc key={i} bloc={bloc} cle={`${section.id}:${i}`} />
             ))}
           </div>
         </section>
       ))}
     </div>
+    </FournisseurAnnotations>
   );
 }

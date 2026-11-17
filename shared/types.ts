@@ -703,3 +703,13 @@ export interface DemandeDocument {
   creeLe: number;
   majLe: number;
 }
+
+/** Notes personnelles et passages surlignés d'une fiche (un document par chapitre). */
+export interface Annotations {
+  /** Identique à l'identifiant du chapitre. */
+  id: string;
+  notes: string;
+  /** Clés des passages surlignés (section:bloc:élément). */
+  surlignes: string[];
+  majLe: number;
+}

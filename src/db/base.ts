@@ -49,10 +49,12 @@ export class BaseLocale extends Dexie {
     // Chaque ajout de table demande une nouvelle version : les appareils déjà
     // installés migrent sans perdre leurs données.
     const assistant: Collection[] = ['conversations', 'documents', 'demandes'];
-    this.version(1).stores(schema(['depots', 'actualisations', ...assistant]));
-    this.version(2).stores(schema(['actualisations', ...assistant]));
-    this.version(3).stores(schema(assistant));
-    this.version(4).stores(schema([]));
+    const v4: Collection[] = ['annotations'];
+    this.version(1).stores(schema(['depots', 'actualisations', ...assistant, ...v4]));
+    this.version(2).stores(schema(['actualisations', ...assistant, ...v4]));
+    this.version(3).stores(schema([...assistant, ...v4]));
+    this.version(4).stores(schema(v4));
+    this.version(5).stores(schema([]));
   }
 
   collection<T extends { id: string }>(nom: Collection): Table<T, string> {

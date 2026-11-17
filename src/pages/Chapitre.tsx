@@ -12,6 +12,7 @@ import {
   Minus,
   Play,
   Plus,
+  Printer,
   RefreshCw,
   Sparkles,
   Star,
@@ -23,6 +24,8 @@ import { cleJour, jourLisible } from '../../shared/dates';
 import { estIncontournable, nbPartiels } from '../../shared/marqueurs';
 import type { Actualisation, BlocFiche, Changement } from '../../shared/types';
 import { Suggestions } from '../composants/Suggestions';
+import { NotesChapitre } from '../fiches/Annotations';
+import { CarteMentale } from '../fiches/CarteMentale';
 import {
   Bouton,
   EtatVide,
@@ -39,7 +42,7 @@ import { RenduFiche } from '../fiches/RenduFiche';
 import { lancerQcmChapitre } from '../lib/actions';
 import { choisirQuestions, demarrerSession } from '../lib/sessions';
 
-type Onglet = 'fiche' | 'aides' | 'annales' | 'actualisations';
+type Onglet = 'fiche' | 'carte' | 'aides' | 'annales' | 'actualisations';
 
 const BLOCS_AIDES: BlocFiche['type'][] = ['mnemo', 'schema', 'etapes', 'arbre', 'scene3d'];
 
@@ -260,17 +263,18 @@ export function PageChapitre() {
         </section>
       )}
 
-      <div className="mb-4">
+      <div className="mb-4 print:hidden">
         <Suggestions chapitreId={chapitre.id} max={2} titre="Le Dr Rodier te propose" />
       </div>
 
-      <div className="mb-4">
+      <div className="mb-4 print:hidden">
         <Onglets
           libelle="Contenu du chapitre"
           valeur={onglet}
           onChange={setOnglet}
           options={[
             { valeur: 'fiche', libelle: 'Fiche' },
+            { valeur: 'carte', libelle: 'Carte mentale' },
             { valeur: 'aides', libelle: 'Aides', compte: nbAides },
             { valeur: 'annales', libelle: 'Annales', compte: annales.length },
             { valeur: 'actualisations', libelle: 'Actualisations', compte: nbChangements },
@@ -280,10 +284,27 @@ export function PageChapitre() {
 
       {onglet === 'fiche' &&
         (fiche ? (
-          <RenduFiche fiche={fiche} />
+          <>
+            <div className="mb-3 flex justify-end print:hidden">
+              <Bouton variante="discret" icone={Printer} className="min-h-9 px-3" onClick={() => window.print()}>
+                Exporter en PDF
+              </Bouton>
+            </div>
+            <RenduFiche fiche={fiche} />
+            <NotesChapitre chapitreId={chapitre.id} />
+          </>
         ) : (
           <EtatVide icone={BookOpen} titre="Fiche en cours de préparation">
             La fiche de ce chapitre sera générée au prochain passage de l'import.
+          </EtatVide>
+        ))}
+
+      {onglet === 'carte' &&
+        (fiche ? (
+          <CarteMentale fiche={fiche} />
+        ) : (
+          <EtatVide icone={BookOpen} titre="Pas encore de carte mentale">
+            La carte est tirée de la fiche : elle apparaîtra dès que la fiche sera générée.
           </EtatVide>
         ))}
 

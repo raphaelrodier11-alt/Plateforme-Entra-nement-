@@ -26,6 +26,7 @@ import { Docteur } from '../composants/Docteur';
 import { MoniteurEcg } from '../composants/Ecg';
 import { motDuJour, salutation } from '../../shared/motivation';
 import { CompteARebours } from '../composants/CompteARebours';
+import { QuestionDuJour } from '../composants/QuestionDuJour';
 import { Suggestions } from '../composants/Suggestions';
 import { chargerDemo } from '../demo/charger';
 
@@ -137,6 +138,8 @@ export function Accueil() {
       </Link>
 
       <CompteARebours />
+
+      <QuestionDuJour />
 
       <Suggestions />
 

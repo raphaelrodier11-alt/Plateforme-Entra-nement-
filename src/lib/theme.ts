@@ -43,3 +43,11 @@ export function initialiserTheme(): void {
     if (lireTheme() === 'auto') appliquerTheme('auto');
   });
 }
+
+// Impression et export PDF : toujours en thème clair, quel que soit le thème choisi.
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeprint', () => {
+    document.documentElement.dataset.theme = 'light';
+  });
+  window.addEventListener('afterprint', () => appliquerTheme(lireTheme()));
+}

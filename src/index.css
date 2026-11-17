@@ -197,4 +197,11 @@ html.bat .pouls-logo {
     box-shadow: none !important;
     border: none !important;
   }
+  section {
+    break-inside: avoid;
+  }
+  .bg-gradient-to-r,
+  .pouls {
+    background: none !important;
+  }
 }
