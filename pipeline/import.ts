@@ -78,10 +78,17 @@ export async function scanner(c: Contexte, sources: SourcesScan): Promise<BilanS
   const connus = c.memoire.liste<Fichier>('fichiers');
   const bilan: BilanScan = { total: 0, nouveaux: 0, modifies: 0, supprimes: 0 };
   const vus = new Set<string>();
+  const ignores = new Map<string, number>();
+  let listes_total = 0;
 
   for (const [role, liste] of listes) {
+    listes_total += liste.length;
     for (const f of liste) {
-      if (natureDe(f.mimeType) === 'ignore' || vus.has(f.id)) continue;
+      if (natureDe(f.mimeType) === 'ignore') {
+        ignores.set(f.mimeType, (ignores.get(f.mimeType) ?? 0) + 1);
+        continue;
+      }
+      if (vus.has(f.id)) continue;
       vus.add(f.id);
       bilan.total += 1;
       const connu = c.memoire.lire<Fichier>('fichiers', f.id);
@@ -172,6 +179,12 @@ export async function scanner(c: Contexte, sources: SourcesScan): Promise<BilanS
     }
   }
 
+  journal(
+    `Drive : ${listes_total} éléments listés, ${bilan.total} retenus` +
+      (ignores.size
+        ? `, ignorés (type non pris en charge) : ${[...ignores].map(([t, n]) => `${t} ×${n}`).join(', ')}`
+        : ''),
+  );
   journal(
     `Drive : ${bilan.total} fichiers, ${bilan.nouveaux} nouveaux, ${bilan.modifies} modifiés, ${bilan.supprimes} supprimés`,
   );
