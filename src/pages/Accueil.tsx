@@ -22,6 +22,7 @@ import { Bouton, Carte, EtatVide, Jauge, LienBouton, Pastille, nombre, pourcent 
 import { useDonnees } from '../etat/donnees';
 import { Anneau, Tuile } from '../graphiques/Graphiques';
 import { LIBELLE_TACHE, lancerRevisionErreurs, lancerTache } from '../lib/actions';
+import { Docteur } from '../composants/Docteur';
 import { chargerDemo } from '../demo/charger';
 
 function cibleRecommandation(r: Recommandation): string {
@@ -105,6 +106,20 @@ export function Accueil() {
           <ArrowRight size={16} aria-hidden />
         </Link>
       )}
+
+      <Link
+        to="/assistant"
+        className="carte carte-vive flex items-center gap-4 border-accent/30 bg-gradient-to-r from-accent-fond to-transparent p-4"
+      >
+        <Docteur taille={54} className="shrink-0" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-base font-semibold">Une question ? Demande au Dr Rodier</span>
+          <span className="block text-sm text-texte-2">
+            Il répond avec tes cours, crée tes fiches et QCM sur mesure, et les range dans ta bibliothèque.
+          </span>
+        </span>
+        <ArrowRight size={18} className="shrink-0 text-accent-clair" aria-hidden />
+      </Link>
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Chiffre principal : avancement global */}

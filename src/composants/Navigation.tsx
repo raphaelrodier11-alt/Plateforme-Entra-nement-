@@ -25,6 +25,7 @@ import { NavLink } from 'react-router-dom';
 import { useEtatSync } from '../App';
 import type { EtatSync } from '../db/sync';
 import { useDonnees } from '../etat/donnees';
+import { Docteur } from './Docteur';
 import { cx } from './ui';
 
 interface Entree {
@@ -98,7 +99,7 @@ export function Navigation() {
       {/* Ordinateur : barre latérale */}
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-bord px-3 py-5 lg:flex">
         <div className="mb-6 flex items-center gap-2.5 px-2">
-          <img src="/icone.svg" alt="" className="size-9 rounded-xl" />
+          <Docteur taille={38} />
           <span className="text-lg font-semibold tracking-tight">Dr Rodier</span>
         </div>
         <nav aria-label="Navigation principale" className="flex flex-1 flex-col gap-1">
@@ -109,8 +110,10 @@ export function Navigation() {
               end={e.vers === '/'}
               className={({ isActive }) =>
                 cx(
-                  'flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors',
-                  isActive ? 'bg-accent-fond text-texte' : 'text-texte-2 hover:bg-surface hover:text-texte',
+                  'relative flex min-h-11 items-center gap-3 rounded-2xl px-3 text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-accent-fond text-texte before:absolute before:top-2.5 before:bottom-2.5 before:-left-3 before:w-1 before:rounded-full before:bg-accent'
+                    : 'text-texte-2 hover:bg-surface hover:text-texte',
                 )
               }
             >

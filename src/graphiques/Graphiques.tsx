@@ -332,7 +332,7 @@ export interface JourChaleur {
 }
 
 /** Nuances d'une seule teinte : plus l'activité est forte, plus la case est claire. */
-const NUANCES = ['#232322', '#0d366b', '#184f95', '#256abf', '#3987e5', '#86b6ef'];
+const NUANCES = ['var(--color-surface-3)', '#0d366b', '#184f95', '#256abf', '#3987e5', '#86b6ef'];
 
 export function niveauChaleur(valeur: number, max: number): number {
   if (valeur <= 0) return 0;

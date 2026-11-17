@@ -11,6 +11,15 @@
     <meta name="apple-mobile-web-app-title" content="Dr Rodier" />
     <link rel="icon" type="image/svg+xml" href="/icone.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('dr-rodier:theme') || 'sombre';
+          var clair = t === 'clair' || (t === 'auto' && matchMedia('(prefers-color-scheme: light)').matches);
+          document.documentElement.dataset.theme = clair ? 'light' : 'dark';
+        } catch (e) {}
+      })();
+    </script>
     <title>Dr Rodier</title>
   </head>
   <body>

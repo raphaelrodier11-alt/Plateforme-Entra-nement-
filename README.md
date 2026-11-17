@@ -253,6 +253,18 @@ question, classement, erratum affiché sur le chapitre). Validées ou refusées,
 les décisions restent dans le journal de la page Mises à jour. Une correction refusée
 n'est pas reproposée.
 
+## Assistant « Dr Rodier »
+
+Un petit médecin virtuel, accessible depuis l'onglet **Dr Rodier** :
+
+- **Discuter** : un bot par matière (ou toutes). Il répond d'abord avec tes cours (les chapitres les plus proches de ta question, cherchés sur l'appareil dans tes fiches), puis complète avec des connaissances générales dans une partie distincte « Pour aller plus loin ». Il cite toujours les chapitres utilisés. Les conversations sont enregistrées et synchronisées.
+- **Créer un document** : fiche, résumé, série de QCM, flashcards ou document libre. Une demande courte (jusqu'à 15 questions, fiche normale) est faite tout de suite. Une demande longue est mise en file : le pipeline la rédige au prochain passage (au plus une heure) et la range dans la bibliothèque.
+- **Bibliothèque** : tous les documents créés, relisibles hors connexion, copiables et imprimables.
+
+**Clé dédiée.** Le bot utilise sa propre clé Gemini (`GEMINI_CHAT_KEY`), créée dans un autre projet Google gratuit que celle de l'import (`GEMINI_API_KEY`). Les deux quotas sont ainsi séparés : le bot ne ralentit jamais l'import, et inversement. Pour l'activer : créer la clé sur aistudio.google.com/apikey, l'ajouter comme secret GitHub `GEMINI_CHAT_KEY`, puis relancer « Déploiement ».
+
+**Apparence.** Réglages → Apparence : sombre, clair ou automatique, réglable séparément sur chaque appareil.
+
 ## Coûts
 
 **Tout est gratuit par défaut** : Cloudflare (Worker et base D1), GitHub Actions (dépôt

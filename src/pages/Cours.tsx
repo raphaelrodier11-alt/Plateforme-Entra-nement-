@@ -19,6 +19,7 @@ import {
   pourcent,
 } from '../composants/ui';
 import { useDonnees } from '../etat/donnees';
+import { couleurMatiere } from '../lib/couleurs';
 
 const STATUTS: StatutChapitre[] = ['a_commencer', 'en_cours', 'a_revoir', 'acquis'];
 
@@ -75,16 +76,20 @@ export function Cours() {
           if (chapitres.length === 0) return null;
           const sm = d.statsMatiere.get(m.id);
           const prediction = d.predictions.get(m.id);
+          const couleur = couleurMatiere(m.id);
           return (
             <section key={m.id} id={m.id} className="scroll-mt-4">
               <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
-                <div>
+                <div className="flex items-start gap-3">
+                  <span aria-hidden className="mt-1 h-9 w-1.5 shrink-0 rounded-full" style={{ background: couleur.accent }} />
+                  <div>
                   <h2 className="text-lg font-semibold">{m.nom}</h2>
                   <p className="chiffres text-xs text-muet">
                     {sm?.nbAcquis ?? 0} / {sm?.nbChapitres ?? 0} chapitres acquis ·{' '}
                     {pourcent(sm?.avancement ?? 0)} d'avancement
                     {prediction && ` · note prévue ${nombre(prediction.note, 1)}/20`}
                   </p>
+                  </div>
                 </div>
               </header>
               <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -94,7 +99,8 @@ export function Cours() {
                     <li key={c.id}>
                       <Link
                         to={`/chapitre/${c.id}`}
-                        className="carte flex h-full flex-col gap-3 p-4 transition-colors hover:bg-surface-2"
+                        className="carte carte-vive flex h-full flex-col gap-3 p-4 hover:bg-surface-2"
+                        style={{ borderTop: `3px solid ${couleur.accent}` }}
                       >
                         <div className="flex flex-wrap gap-1.5">
                           <PastilleStatut statut={s?.statut ?? 'a_commencer'} />

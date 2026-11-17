@@ -6,8 +6,9 @@ import { Check, CloudOff, Download, HardDrive, Link2, Sparkles, Trash2, Unplug }
 import { useEffect, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useEtatSync } from '../App';
+import { choisirTheme, lireTheme, type Theme } from '../lib/theme';
 import { CRENEAUX, type Creneau, type Reglages as TypeReglages } from '../../shared/types';
-import { Bouton, Carte, Pastille, STYLE_CHAMP, TitrePage } from '../composants/ui';
+import { Bouton, Carte, Pastille, Puce, STYLE_CHAMP, TitrePage } from '../composants/ui';
 import { base } from '../db/base';
 import { enregistrer, synchroniser } from '../db/sync';
 import { chargerDemo, supprimerDemo } from '../demo/charger';
@@ -470,12 +471,43 @@ function SectionDonnees() {
   );
 }
 
+function SectionApparence() {
+  const [theme, setTheme] = useState<Theme>(lireTheme);
+  const choix: { valeur: Theme; libelle: string }[] = [
+    { valeur: 'sombre', libelle: 'Sombre' },
+    { valeur: 'clair', libelle: 'Clair' },
+    { valeur: 'auto', libelle: 'Automatique' },
+  ];
+  return (
+    <Carte titre="Apparence">
+      <p className="mb-3 text-sm text-texte-2">
+        Le thème se règle sur chaque appareil. « Automatique » suit le réglage de ton iPhone ou de ta tablette.
+      </p>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Thème">
+        {choix.map((c) => (
+          <Puce
+            key={c.valeur}
+            actif={theme === c.valeur}
+            onClick={() => {
+              setTheme(c.valeur);
+              choisirTheme(c.valeur);
+            }}
+          >
+            {c.libelle}
+          </Puce>
+        ))}
+      </div>
+    </Carte>
+  );
+}
+
 export function Reglages() {
   const d = useDonnees();
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <TitrePage titre="Réglages" />
       <SectionLien />
+      <SectionApparence />
       <SectionDrive reglages={d.reglages} />
       <SectionCalendrier reglages={d.reglages} />
       <SectionIa reglages={d.reglages} />

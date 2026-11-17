@@ -4,6 +4,9 @@ import { BrowserRouter } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
 import { App } from './App';
 import './index.css';
+import { initialiserTheme } from './lib/theme';
+
+initialiserTheme();
 
 // Service worker : met l'interface en cache pour l'usage hors connexion.
 registerSW({ immediate: true });

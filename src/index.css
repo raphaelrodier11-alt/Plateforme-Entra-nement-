@@ -1,8 +1,10 @@
 @import 'tailwindcss';
 
 /*
- * Thème sombre unique. Les couleurs des graphiques suivent une palette
- * validée pour le daltonisme sur la surface sombre (#1a1a19).
+ * Deux thèmes : sombre (par défaut) et clair, choisis dans les réglages.
+ * Les couleurs des graphiques suivent une palette validée pour le
+ * daltonisme sur la surface sombre (#1a1a19) ; le thème clair garde les
+ * mêmes teintes, un peu plus profondes pour rester lisibles sur fond clair.
  */
 @theme {
   --color-fond: #0d0d0d;
@@ -29,7 +31,41 @@
   --color-critique: #d03b3b;
 
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --radius-carte: 1rem;
+  /* Titres : arrondi sur Apple (iPhone, iPad, Mac), système ailleurs. */
+  --font-titre: ui-rounded, 'SF Pro Rounded', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --radius-carte: 1.25rem;
+  --ombre-carte: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 10px 30px -14px rgb(0 0 0 / 0.6);
+  --lueur: radial-gradient(60rem 28rem at 15% -8%, rgb(57 135 229 / 0.1), transparent 60%),
+    radial-gradient(40rem 24rem at 100% 0%, rgb(25 158 112 / 0.06), transparent 55%);
+}
+
+/* Thème clair : « papier » chaud, cartes blanches, encre douce. */
+:root[data-theme='light'] {
+  --color-fond: #f6f5f2;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1efea;
+  --color-surface-3: #e7e4dd;
+  --color-bord: rgb(30 28 24 / 0.11);
+  --color-texte: #1d1c19;
+  --color-texte-2: #4b4943;
+  --color-muet: #6f6c64;
+  --color-grille: #e7e4dd;
+  --color-axe: #cfcbc1;
+
+  --color-accent: #2466c8;
+  --color-accent-clair: #1d57ad;
+  --color-accent-fond: rgb(36 102 200 / 0.1);
+  --color-serie-2: #c24a1a;
+  --color-serie-3: #0f8a5f;
+
+  --color-bon: #0b7d2a;
+  --color-alerte: #a86a00;
+  --color-serieux: #c4501f;
+  --color-critique: #c0392b;
+
+  --ombre-carte: 0 1px 2px rgb(30 28 24 / 0.06), 0 10px 28px -16px rgb(30 28 24 / 0.22);
+  --lueur: radial-gradient(60rem 28rem at 15% -8%, rgb(36 102 200 / 0.09), transparent 60%),
+    radial-gradient(40rem 24rem at 100% 0%, rgb(15 138 95 / 0.06), transparent 55%);
 }
 
 @layer base {
@@ -38,10 +74,14 @@
     background: var(--color-fond);
     -webkit-text-size-adjust: 100%;
   }
+  html[data-theme='light'] {
+    color-scheme: light;
+  }
   body {
     margin: 0;
     min-height: 100dvh;
-    background: var(--color-fond);
+    background: var(--lueur), var(--color-fond);
+    background-attachment: fixed;
     color: var(--color-texte);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
@@ -59,7 +99,11 @@
     outline-offset: 2px;
   }
   ::selection {
-    background: rgb(57 135 229 / 0.4);
+    background: color-mix(in oklab, var(--color-accent) 35%, transparent);
+  }
+  h1,
+  h2 {
+    font-family: var(--font-titre);
   }
   /*
    * Les éléments d'une grille peuvent rétrécir : sans cela, un texte long
@@ -74,6 +118,21 @@
   background: var(--color-surface);
   border: 1px solid var(--color-bord);
   border-radius: var(--radius-carte);
+  box-shadow: var(--ombre-carte);
+}
+
+/* Carte cliquable : léger soulèvement au survol et à l'appui. */
+@utility carte-vive {
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
+  &:hover {
+    transform: translateY(-2px);
+  }
+  &:active {
+    transform: scale(0.99);
+  }
 }
 
 @utility chiffres {
@@ -98,5 +157,23 @@
   * {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  /* Impression d'un document de la bibliothèque : on ne garde que le contenu. */
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  nav,
+  aside,
+  button,
+  [role='tablist'] {
+    display: none !important;
+  }
+  .carte {
+    box-shadow: none !important;
+    border: none !important;
   }
 }

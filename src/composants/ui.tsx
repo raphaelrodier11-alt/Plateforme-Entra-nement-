@@ -50,14 +50,15 @@ export function Carte({
 type Variante = 'primaire' | 'secondaire' | 'discret' | 'danger';
 
 const STYLE_BOUTON: Record<Variante, string> = {
-  primaire: 'bg-accent text-white hover:bg-[#4a93ea] active:bg-[#2a78d6]',
+  primaire:
+    'bg-gradient-to-b from-accent to-[color-mix(in_oklab,var(--color-accent)_82%,black)] text-white shadow-sm shadow-accent/30 hover:brightness-110 active:scale-[0.98]',
   secondaire: 'bg-surface-2 text-texte border border-bord hover:bg-surface-3',
   discret: 'text-texte-2 hover:bg-surface-2 hover:text-texte',
   danger: 'bg-surface-2 text-texte border border-critique/60 hover:bg-critique/20',
 };
 
 const BASE_BOUTON =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40';
+  'inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-medium transition duration-150 disabled:cursor-not-allowed disabled:opacity-40';
 
 export function Bouton({
   variante = 'secondaire',
@@ -193,7 +194,7 @@ export function TitrePage({
   return (
     <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight">{titre}</h1>
+        <h1 className="text-[1.7rem] leading-tight font-semibold tracking-tight">{titre}</h1>
         {sousTitre && <p className="mt-1 text-sm text-texte-2">{sousTitre}</p>}
       </div>
       {action}
