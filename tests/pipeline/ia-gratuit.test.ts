@@ -21,7 +21,7 @@ vi.mock('@google/genai', () => ({
   },
 }));
 
-const { iaGemini, QuotaAtteint } = await import('../../pipeline/ia');
+const { iaGemini, QuotaAtteint, analyser429 } = await import('../../pipeline/ia');
 
 const demande = (niveau: 'masse' | 'expert') => ({ niveau, etape: 'Test', systeme: 's', consigne: 'c' });
 
@@ -63,18 +63,50 @@ describe('couche Gemini en mode gratuit', () => {
     expect(terminee).toBe(true);
   });
 
-  it('s\'arrête sur une limite de requêtes (429) au lieu d\'insister', async () => {
+  const e429 = (message: string) => Object.assign(new Error(message), { status: 429 });
+  const MESSAGE_MINUTE = JSON.stringify({ error: { details: [{ violations: [{ quotaId: 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier' }] }, { retryDelay: '20s' }] } });
+  const MESSAGE_JOUR = JSON.stringify({ error: { details: [{ violations: [{ quotaId: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier' }] }, { retryDelay: '3000s' }] } });
+
+  it('analyse une limite par minute ou par jour', () => {
+    expect(analyser429(e429(MESSAGE_MINUTE))).toMatchObject({ quotidien: false, delaiMs: 21_500, quota: 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier' });
+    expect(analyser429(e429(MESSAGE_JOUR)).quotidien).toBe(true);
+    expect(analyser429(e429('quota'))).toEqual({ quotidien: false, quota: undefined });
+  });
+
+  it("s'arrête tout de suite sur une limite du jour", async () => {
     reponse = () => {
-      throw Object.assign(new Error('quota'), { status: 429 });
+      throw e429(MESSAGE_JOUR);
     };
     const ia = await iaGemini({ cle: 'k', plafondUsd: 100, gratuit: true });
     const echec = ia.json(demande('masse')).catch((e: unknown) => e);
-    await vi.advanceTimersByTimeAsync(60_000);
-    const erreur = await echec;
-    expect(erreur).toBeInstanceOf(QuotaAtteint);
-    expect((erreur as Error).name).toBe('QuotaAtteint');
-    // 4 essais au plus, espacés.
-    expect(appels.length).toBeLessThanOrEqual(4);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(await echec).toBeInstanceOf(QuotaAtteint);
+    expect(appels).toHaveLength(1);
+  });
+
+  it('attend le délai indiqué sur une limite par minute, puis réussit', async () => {
+    let n = 0;
+    reponse = () => {
+      if (n++ === 0) throw e429(MESSAGE_MINUTE);
+      return { text: '{"ok":true}', usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 10 } };
+    };
+    const ia = await iaGemini({ cle: 'k', plafondUsd: 100, gratuit: true });
+    const suite = ia.json(demande('masse'));
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(await suite).toEqual({ ok: true });
+    expect(appels).toHaveLength(2);
+  });
+
+  it("n'insiste pas quand la limite persiste sans indication", async () => {
+    reponse = () => {
+      throw e429('quota');
+    };
+    const ia = await iaGemini({ cle: 'k', plafondUsd: 100, gratuit: true });
+    const echec = ia.json(demande('masse')).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(200_000);
+    expect(await echec).toBeInstanceOf(QuotaAtteint);
+    // Une requête, puis deux nouvelles tentatives au plus.
+    expect(appels.length).toBeLessThanOrEqual(3);
   });
 });
 

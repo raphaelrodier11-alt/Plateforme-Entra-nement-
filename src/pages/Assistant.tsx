@@ -4,6 +4,9 @@
  */
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
+  Volume2,
+  VolumeX,
+  GraduationCap,
   BookMarked,
   Check,
   Clock,
@@ -19,9 +22,10 @@ import {
 } from 'lucide-react';
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { LIBELLE_TYPE_DOCUMENT } from '../../shared/assistant';
+import { LIBELLE_TYPE_DOCUMENT, noteInterro } from '../../shared/assistant';
 import type { Conversation, DemandeDocument, DocumentBiblio, Scene3D, TypeDocument } from '../../shared/types';
 import { Docteur } from '../composants/Docteur';
+import { BoutonMicro, lectureDisponible, parler, silence } from '../composants/Voix';
 import { Markdown } from '../composants/Markdown';
 import { Bouton, Carte, EtatVide, Onglets, Pastille, Puce, STYLE_CHAMP, TitrePage, cx } from '../composants/ui';
 import { base } from '../db/base';
@@ -31,13 +35,15 @@ import {
   assistantDisponible,
   demanderDocument,
   nouvelleConversation,
+  nouvelleInterro,
   poserQuestion,
+  tourInterro,
   supprimerConversation,
   supprimerDocument,
 } from '../lib/assistant';
 import { couleurMatiere } from '../lib/couleurs';
 
-type Vue = 'discuter' | 'creer' | 'biblio';
+type Vue = 'discuter' | 'interro' | 'creer' | 'biblio';
 
 const Scene3DVue = lazy(() => import('../fiches/Scene3D'));
 
@@ -55,7 +61,7 @@ const dateCourte = (t: number) =>
 export function Assistant() {
   const [params] = useSearchParams();
   const vueDemandee = params.get('vue');
-  const [vue, setVue] = useState<Vue>(vueDemandee === 'biblio' || vueDemandee === 'creer' ? vueDemandee : 'discuter');
+  const [vue, setVue] = useState<Vue>(vueDemandee === 'biblio' || vueDemandee === 'creer' || vueDemandee === 'interro' ? vueDemandee : 'discuter');
   const [disponible, setDisponible] = useState<boolean | undefined>();
   const demandes = useLiveQuery(() => base.collection<DemandeDocument>('demandes').toArray(), []) ?? [];
   const enAttente = demandes.filter((d) => d.statut === 'en_attente' || d.statut === 'en_cours').length;
@@ -91,12 +97,14 @@ export function Assistant() {
           onChange={setVue}
           options={[
             { valeur: 'discuter', libelle: 'Discuter' },
+            { valeur: 'interro', libelle: 'Interro orale' },
             { valeur: 'creer', libelle: 'Créer un document' },
             { valeur: 'biblio', libelle: 'Bibliothèque', compte: enAttente },
           ]}
         />
       </div>
       {vue === 'discuter' && <Discussion />}
+      {vue === 'interro' && <Interro />}
       {vue === 'creer' && <CreerDocument onCree={() => setVue('biblio')} />}
       {vue === 'biblio' && <Bibliotheque />}
     </div>
@@ -259,7 +267,7 @@ function Discussion() {
               </div>
             </div>
           )}
-          {courante.messages.map((m, i) => (
+          {courante.messages.filter((m) => !m.masque).map((m, i) => (
             <Bulle key={`${m.instant}-${i}`} role={m.role}>
               {m.role === 'assistant' ? <Markdown texte={m.texte} /> : <p className="text-sm whitespace-pre-wrap">{m.texte}</p>}
               {m.scene && (
@@ -323,6 +331,7 @@ function Discussion() {
               className={`${STYLE_CHAMP} resize-none py-2`}
             />
           </label>
+          <BoutonMicro onTexte={setSaisie} />
           <Bouton type="submit" variante="primaire" icone={Send} disabled={attente || !saisie.trim()} aria-label="Envoyer" />
         </form>
         <p className="mt-2 text-xs text-muet">
@@ -607,6 +616,149 @@ function Bibliotheque() {
       <p className="flex items-center gap-1.5 text-xs text-muet">
         <MessageCircle size={13} aria-hidden /> Pour en demander un nouveau : onglet « Créer un document ».
       </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Interrogation orale
+// ---------------------------------------------------------------------------
+
+function Interro() {
+  const d = useDonnees();
+  const [matiereId, setMatiereId] = useState<string | undefined>();
+  const [chapitreId, setChapitreId] = useState('');
+  const [nb, setNb] = useState(5);
+  const [conv, setConv] = useState<Conversation | undefined>();
+  const [saisie, setSaisie] = useState('');
+  const [attente, setAttente] = useState(false);
+  const [erreur, setErreur] = useState<string | undefined>();
+  const [voix, setVoix] = useState(false);
+  const fin = useRef<HTMLDivElement>(null);
+  const chapitres = (matiereId ? d.chapitresParMatiere.get(matiereId) : d.chapitres) ?? [];
+
+  useEffect(() => {
+    fin.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [conv?.messages.length, attente]);
+  useEffect(() => () => silence(), []);
+
+  const jouer = async (c: Conversation, reponse?: string) => {
+    setAttente(true);
+    setErreur(undefined);
+    if (reponse) setConv({ ...c, messages: [...c.messages, { role: 'user', texte: reponse, instant: Date.now() }] });
+    try {
+      const suivante = await tourInterro(d, c, reponse);
+      setConv(suivante);
+      const derniere = suivante.messages.at(-1);
+      if (voix && derniere) parler(derniere.texte);
+    } catch (e) {
+      setErreur(e instanceof ErreurAssistant ? e.message : 'Une erreur est survenue. Réessaie.');
+      setConv(c);
+    } finally {
+      setAttente(false);
+    }
+  };
+
+  const demarrer = () => {
+    const c = nouvelleInterro(matiereId, chapitreId || undefined, nb);
+    setConv(c);
+    void jouer(c);
+  };
+
+  if (!conv) {
+    return (
+      <Carte titre="Interro orale : le Dr Rodier t'interroge, tu réponds, il corrige">
+        <div className="space-y-4">
+          <div>
+            <p className="mb-1.5 text-xs text-muet">Matière</p>
+            <ChoixMatiere valeur={matiereId} onChange={(id) => { setMatiereId(id); setChapitreId(''); }} tout="Toutes" />
+          </div>
+          <label className="block">
+            <span className="mb-1.5 block text-xs text-muet">Chapitre (facultatif)</span>
+            <select value={chapitreId} onChange={(e) => setChapitreId(e.target.value)} className={STYLE_CHAMP}>
+              <option value="">Plusieurs chapitres au hasard</option>
+              {chapitres.map((c) => (
+                <option key={c.id} value={c.id}>{c.titre}</option>
+              ))}
+            </select>
+          </label>
+          <div>
+            <p className="mb-1.5 text-xs text-muet">Nombre de questions</p>
+            <div className="flex gap-1.5" role="group" aria-label="Nombre de questions">
+              {[3, 5, 10].map((n) => (
+                <Puce key={n} actif={nb === n} onClick={() => setNb(n)}>{n}</Puce>
+              ))}
+            </div>
+          </div>
+          <Bouton variante="primaire" icone={GraduationCap} onClick={demarrer} disabled={d.chapitres.length === 0}>
+            Commencer l'interro
+          </Bouton>
+          <p className="text-xs text-muet">Tu peux répondre en tapant ou en dictant avec le micro, et faire lire les questions à voix haute.</p>
+        </div>
+      </Carte>
+    );
+  }
+
+  const visibles = conv.messages.filter((m) => !m.masque);
+  const notes = conv.messages.filter((m) => m.role === 'assistant').map((m) => noteInterro(m.texte)).filter((n): n is number => n !== undefined);
+  const moyenne = notes.length ? notes.reduce((a, b) => a + b, 0) / notes.length : undefined;
+  const terminee = conv.messages.some((m) => m.role === 'assistant' && /\*{0,2}Bilan/i.test(m.texte));
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Pastille ton="accent">{notes.length}/{conv.interro?.nbQuestions} corrigées</Pastille>
+        {moyenne !== undefined && <Pastille ton={moyenne >= 6 ? 'bon' : 'alerte'}>Moyenne {moyenne.toFixed(1).replace('.', ',')}/10</Pastille>}
+        <span className="flex-1" />
+        {lectureDisponible() && (
+          <Bouton variante="discret" icone={voix ? Volume2 : VolumeX} className="min-h-9 px-3" aria-pressed={voix} onClick={() => { if (voix) silence(); setVoix(!voix); }}>
+            {voix ? 'Voix activée' : 'Voix coupée'}
+          </Bouton>
+        )}
+        <Bouton variante="discret" icone={Plus} className="min-h-9 px-3" onClick={() => { silence(); setConv(undefined); }}>
+          Nouvelle interro
+        </Bouton>
+      </div>
+      <div className="carte flex min-h-[46dvh] flex-col p-3 sm:p-4">
+        <div className="flex-1 space-y-4" aria-live="polite">
+          {visibles.map((m, i) => (
+            <Bulle key={`${m.instant}-${i}`} role={m.role}>
+              {m.role === 'assistant' ? <Markdown texte={m.texte} /> : <p className="text-sm whitespace-pre-wrap">{m.texte}</p>}
+            </Bulle>
+          ))}
+          {attente && (
+            <Bulle role="assistant">
+              <p className="text-sm text-muet" role="status">Le Dr Rodier prépare…</p>
+            </Bulle>
+          )}
+          {erreur && <p role="alert" className="rounded-xl border border-critique/50 bg-critique/10 p-3 text-sm">{erreur}</p>}
+          <div ref={fin} />
+        </div>
+        {!terminee && (
+          <form
+            className="mt-3 flex items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const r = saisie.trim();
+              if (!r || attente) return;
+              setSaisie('');
+              void jouer(conv, r);
+            }}
+          >
+            <label className="min-w-0 flex-1">
+              <span className="sr-only">Ta réponse</span>
+              <textarea value={saisie} onChange={(e) => setSaisie(e.target.value)} rows={3} maxLength={4000} placeholder="Ta réponse (tape ou dicte)…" className={`${STYLE_CHAMP} resize-none py-2`} />
+            </label>
+            <BoutonMicro onTexte={setSaisie} />
+            <Bouton type="submit" variante="primaire" icone={Send} disabled={attente || !saisie.trim()} aria-label="Envoyer ma réponse" />
+          </form>
+        )}
+        {terminee && (
+          <Bouton className="mt-3" variante="primaire" icone={GraduationCap} onClick={() => setConv(undefined)}>
+            Refaire une interro
+          </Bouton>
+        )}
+      </div>
     </div>
   );
 }

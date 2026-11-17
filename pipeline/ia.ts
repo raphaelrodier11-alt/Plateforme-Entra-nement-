@@ -62,6 +62,23 @@ const ECART_GRATUIT_MS = 8500;
 
 export { choisirModele };
 
+/**
+ * Lit une erreur 429 de Gemini : limite par jour (inutile d'attendre) ou par
+ * minute (on peut réessayer après le délai indiqué). Le message de Google
+ * contient l'identifiant du quota touché et, souvent, le délai conseillé.
+ */
+export function analyser429(erreur: unknown): { quotidien: boolean; delaiMs?: number; quota?: string } {
+  const message = erreur instanceof Error ? erreur.message : String(erreur);
+  const quota = /"quotaId"\s*:\s*"([^"]+)"/.exec(message)?.[1];
+  const quotidien = /PerDay/i.test(quota ?? '') || /per\s*day|requests per day/i.test(message);
+  const delai = /"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/.exec(message)?.[1] ?? /retry in (\d+(?:\.\d+)?)s/i.exec(message)?.[1];
+  return { quotidien, quota, ...(delai ? { delaiMs: Math.ceil(Number(delai) * 1000) + 1500 } : {}) };
+}
+
+/** Plus long que cela, on laisse le prochain passage reprendre. */
+const ATTENTE_429_MAX_MS = 150_000;
+const ATTENTES_429_MAX = 8;
+
 /** Décode la réponse du modèle, en tolérant un bloc de code autour du JSON. */
 export function decoderJson(texte: string): unknown {
   const net = texte
@@ -146,6 +163,7 @@ export async function iaGemini(options: {
       const { parties, aSupprimer } = await enParties(demande.pieces ?? []);
       try {
         let rappel = '';
+        let attentes429 = 0;
         for (let essai = 1; ; essai++) {
           try {
             const reponse = await client.models.generateContent({
@@ -172,11 +190,21 @@ export async function iaGemini(options: {
             const statut = (erreur as { status?: number }).status;
             const reessayable =
               erreur instanceof SyntaxError || statut === 429 || (statut !== undefined && statut >= 500);
-            if (!reessayable || essai >= ESSAIS) {
-              // 429 : limite de requêtes ou quota du jour atteint.
-              if (statut === 429) throw new QuotaAtteint();
-              throw erreur;
+            if (statut === 429) {
+              // Limite par minute : on attend le délai indiqué et on recommence, sans compter d'essai.
+              const info = analyser429(erreur);
+              const delai = info.delaiMs ?? 35_000;
+              if (!info.quotidien && delai <= ATTENTE_429_MAX_MS && attentes429 < (info.delaiMs ? ATTENTES_429_MAX : 2)) {
+                attentes429 += 1;
+                journal(`Limite par minute (${info.quota ?? 'quota non précisé'}) : attente de ${Math.round(delai / 1000)} s`);
+                await new Promise((r) => setTimeout(r, delai));
+                essai -= 1;
+                continue;
+              }
+              journal(`Limite atteinte (${info.quota ?? 'quota non précisé'}${info.quotidien ? ', quotidienne' : ''}) : reprise au prochain passage`);
+              throw new QuotaAtteint();
             }
+            if (!reessayable || essai >= ESSAIS) throw erreur;
             if (erreur instanceof SyntaxError) {
               rappel = '\n\nTa réponse précédente n’était pas un JSON valide. Réponds uniquement par le JSON demandé.';
             }

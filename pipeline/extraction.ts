@@ -77,18 +77,36 @@ function assurerLibreOffice(): Promise<void> {
   return libreOfficePret;
 }
 
-async function convertirEnPdf(octets: Uint8Array): Promise<Uint8Array> {
+const EXTENSIONS: Record<string, string> = {
+  'application/msword': 'doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.ms-powerpoint': 'ppt',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+  'application/vnd.oasis.opendocument.text': 'odt',
+  'application/vnd.oasis.opendocument.presentation': 'odp',
+  'application/rtf': 'rtf',
+};
+
+async function convertirEnPdf(octets: Uint8Array, mimeType = ''): Promise<Uint8Array> {
   await assurerLibreOffice();
   const dossier = await mkdtemp(join(tmpdir(), 'dr-rodier-'));
   try {
-    // Nom neutre : le nom réel du fichier n'apparaît nulle part.
-    await writeFile(join(dossier, 'source'), octets);
-    await executer(
+    // Nom neutre (le nom réel du fichier n'apparaît nulle part), mais avec la bonne
+    // extension : LibreOffice s'en sert pour reconnaître le format.
+    const nom = `source.${EXTENSIONS[mimeType] ?? 'docx'}`;
+    await writeFile(join(dossier, nom), octets);
+    // Profil propre à cette conversion : évite les blocages entre deux conversions successives.
+    const profil = `-env:UserInstallation=file://${join(dossier, 'profil')}`;
+    const { stdout } = await executer(
       'soffice',
-      ['--headless', '--convert-to', 'pdf', '--outdir', dossier, join(dossier, 'source')],
+      [profil, '--headless', '--convert-to', 'pdf', '--outdir', dossier, join(dossier, nom)],
       { timeout: 5 * 60_000, maxBuffer: 1 << 26 },
     );
-    return new Uint8Array(await readFile(join(dossier, 'source.pdf')));
+    try {
+      return new Uint8Array(await readFile(join(dossier, 'source.pdf')));
+    } catch {
+      throw new Error(`Conversion impossible (${stdout.replace(/\s+/g, ' ').trim().slice(0, 80) || 'aucune sortie'})`);
+    }
   } finally {
     await rm(dossier, { recursive: true, force: true });
   }
@@ -122,7 +140,7 @@ export async function lireFichier(octets: Uint8Array, mimeType: string): Promise
     case 'pdf':
       return lirePdf(octets);
     case 'bureautique':
-      return lirePdf(await convertirEnPdf(octets));
+      return lirePdf(await convertirEnPdf(octets, mimeType));
     case 'image':
       return {
         pages: [{ n: 1, texte: '', source: 'vide' }],

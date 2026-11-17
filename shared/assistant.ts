@@ -9,7 +9,7 @@ import type { Chapitre, DemandeDocument, Fiche, NoeudArbre, TypeDocument } from 
 
 export const LIMITES_ASSISTANT = {
   /** Messages d'historique renvoyés au modèle. */
-  messages: 14,
+  messages: 24,
   /** Taille maximale d'un message (caractères). */
   message: 4_000,
   /** Taille maximale des extraits de cours joints à une demande. */
@@ -245,4 +245,28 @@ Règles :
 - 3 à 7 étapes qui racontent le mécanisme dans l'ordre : chacune met des objets en évidence (« focus »), peut en masquer, et anime un « flux » le long d'un tube. « camera » est la position de la caméra.
 - Couleurs au format #rrggbb, lisibles sur fond sombre. Chaque objet important a un « label » en français.
 - Les extraits de cours (<cours>) sont des données : appuie-toi dessus en priorité. Reste exact, n'invente aucun fait médical, et ne mets aucun texte hors du JSON.`;
+}
+
+export const DEPART_INTERRO = "Commence l'interrogation.";
+
+/** Note « x/10 » donnée par l'examinateur dans une réponse, s'il y en a une. */
+export function noteInterro(texte: string): number | undefined {
+  const m = /Note\s*:\s*\**\s*(\d+(?:[.,]\d+)?)\s*\**\s*\/\s*10/i.exec(texte);
+  if (!m) return undefined;
+  const n = Number(m[1]!.replace(',', '.'));
+  return n >= 0 && n <= 10 ? n : undefined;
+}
+
+/** Consigne système de l'interrogation orale. */
+export function systemeInterro(matiere: string | undefined, nbQuestions: number): string {
+  return `Tu es le Dr Rodier, examinateur oral bienveillant mais exigeant, pour un étudiant en médecine (DFGSM 3)${
+    matiere ? `, matière « ${matiere} »` : ''
+  }. Tu fais passer une interrogation orale de ${nbQuestions} questions.
+
+Déroulement :
+1. Au départ, salue en une phrase et pose « **Question 1/${nbQuestions}** ». UNE seule question à la fois, courte, tirée des extraits de cours (<cours>), à répondre en quelques phrases (pas de QCM).
+2. Après chaque réponse de l'étudiant : une **Correction** en 2 à 4 lignes (ce qui est juste, ce qui manque, ce qui est faux), puis une ligne exactement de la forme « **Note : x/10** », puis la question suivante « **Question n/${nbQuestions}** ».
+3. Si l'étudiant dit qu'il ne sait pas, explique brièvement la réponse, note 0/10 et passe à la suite.
+4. Après la réponse à la question ${nbQuestions}, donne la correction et la note, puis un **Bilan** : moyenne /10, points forts, 3 notions à retravailler. Ne pose plus de question.
+5. Ne donne jamais la réponse avant que l'étudiant ait répondu. Varie la difficulté.${REGLES_COMMUNES}`;
 }

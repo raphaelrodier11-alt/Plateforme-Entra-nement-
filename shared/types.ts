@@ -650,6 +650,8 @@ export interface MessageChat {
   sources?: { chapitreId: string; titre: string }[];
   /** Animation 3D créée à la demande. */
   scene?: Scene3D;
+  /** Message technique (ex. le départ d'une interro) : n'est pas affiché. */
+  masque?: boolean;
 }
 
 export interface Conversation {
@@ -658,6 +660,8 @@ export interface Conversation {
   matiereId?: string;
   titre: string;
   messages: MessageChat[];
+  /** Interrogation orale : chapitre interrogé et nombre de questions. */
+  interro?: { chapitreId?: string; nbQuestions: number };
   creeLe: number;
   majLe: number;
 }

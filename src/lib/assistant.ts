@@ -4,6 +4,7 @@
  */
 import { validerScene } from '../../pipeline/validation';
 import {
+  DEPART_INTERRO,
   demandeUneScene3D,
   LIBELLE_TYPE_DOCUMENT,
   LIMITES_ASSISTANT,
@@ -297,4 +298,52 @@ export async function creerDocumentScene(
   };
   await enregistrer('documents', document);
   return { scene, document };
+}
+
+/** Nouvelle interrogation orale sur une matière (et un chapitre si précisé). */
+export function nouvelleInterro(matiereId: string | undefined, chapitreId: string | undefined, nbQuestions: number): Conversation {
+  return { ...nouvelleConversation(matiereId), titre: 'Interro orale', interro: { chapitreId, nbQuestions } };
+}
+
+/**
+ * Un tour d'interrogation : sans texte, l'examinateur pose la première question ;
+ * sinon il corrige la réponse, note, et enchaîne.
+ */
+export async function tourInterro(d: Donnees, conversation: Conversation, reponse?: string): Promise<Conversation> {
+  const interro = conversation.interro;
+  if (!interro) throw new Error('Conversation sans interrogation');
+  const matiere = conversation.matiereId ? d.matiereParId.get(conversation.matiereId) : undefined;
+  const maintenant = Date.now();
+  const message: MessageChat = reponse
+    ? { role: 'user', texte: reponse.trim().slice(0, LIMITES_ASSISTANT.message), instant: maintenant }
+    : { role: 'user', texte: DEPART_INTERRO, instant: maintenant, masque: true };
+  const apresQuestion: Conversation = { ...conversation, messages: [...conversation.messages, message], majLe: maintenant };
+  await enregistrer('conversations', apresQuestion);
+
+  // Les extraits du cours interrogé accompagnent chaque tour : l'examinateur reste fidèle au cours.
+  const chapitres = interro.chapitreId ? d.chapitres.filter((c) => c.id === interro.chapitreId) : d.chapitres.filter((c) => !conversation.matiereId || c.matiereId === conversation.matiereId);
+  const choisis = interro.chapitreId
+    ? chapitres
+    : [...chapitres].sort(() => 0.5 - Math.random()).slice(0, 3);
+  const extraits = chercherExtraits({
+    question: choisis.map((c) => c.titre).join(' '),
+    matiereId: conversation.matiereId,
+    chapitres: choisis,
+    fiches: d.fiches,
+  });
+
+  const texte = await appeler({
+    mode: 'interro',
+    matiere: matiere?.nom,
+    nbQuestions: interro.nbQuestions,
+    contexte: assemblerContexte(extraits),
+    messages: apresQuestion.messages.slice(-LIMITES_ASSISTANT.messages).map((m) => ({ role: m.role, texte: m.texte })),
+  });
+  const final: Conversation = {
+    ...apresQuestion,
+    messages: [...apresQuestion.messages, { role: 'assistant', texte, instant: Date.now(), sources: extraits.map((e) => ({ chapitreId: e.chapitreId, titre: e.titre })) }],
+    majLe: Date.now(),
+  };
+  await enregistrer('conversations', final);
+  return final;
 }

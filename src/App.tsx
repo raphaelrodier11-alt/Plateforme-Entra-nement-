@@ -26,6 +26,7 @@ import { Fichiers } from './pages/Fichiers';
 import { Flashcards } from './pages/Flashcards';
 import { PagePlanning } from './pages/Planning';
 import { Qcm } from './pages/Qcm';
+import { Recherche } from './pages/Recherche';
 import { Reglages } from './pages/Reglages';
 import { PageSession } from './pages/Session';
 import { Suivi } from './pages/Suivi';
@@ -134,6 +135,7 @@ export function App() {
               <Route path="/" element={<Accueil />} />
               <Route path="/cours" element={<Cours />} />
               <Route path="/assistant" element={<Assistant />} />
+              <Route path="/recherche" element={<Recherche />} />
               <Route path="/chapitre/:id" element={<PageChapitre />} />
               <Route path="/chapitre/:id/flashcards" element={<Flashcards />} />
               <Route path="/qcm" element={<Qcm />} />
