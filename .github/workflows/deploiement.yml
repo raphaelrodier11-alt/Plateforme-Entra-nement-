@@ -25,6 +25,7 @@ jobs:
       PIPELINE_KEY: ${{ secrets.PIPELINE_KEY }}
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      GEMINI_CHAT_KEY: ${{ secrets.GEMINI_CHAT_KEY }}
       GITHUB_DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
     steps:
       - name: Vérifier la configuration
@@ -95,7 +96,7 @@ jobs:
         if: steps.config.outputs.pret == 'oui'
         run: |
           node -e '
-            const noms = ["PIPELINE_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GITHUB_DISPATCH_TOKEN"];
+            const noms = ["PIPELINE_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GEMINI_CHAT_KEY", "GITHUB_DISPATCH_TOKEN"];
             const secrets = Object.fromEntries(noms.filter((n) => process.env[n]).map((n) => [n, process.env[n]]));
             require("fs").writeFileSync("secrets.json", JSON.stringify(secrets));
             console.log("Secrets transmis :", Object.keys(secrets).join(", "));

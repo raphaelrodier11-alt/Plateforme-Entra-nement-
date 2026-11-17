@@ -29,6 +29,8 @@ const INDEX: Partial<Record<Collection, string>> = {
   tentatives: 'id, questionId, date, sessionId',
   flashcards: 'id, chapitreId',
   actualisations: 'id, chapitreId',
+  conversations: 'id, matiereId, majLe',
+  documents: 'id, matiereId, creeLe',
 };
 
 export class BaseLocale extends Dexie {
@@ -46,9 +48,11 @@ export class BaseLocale extends Dexie {
     };
     // Chaque ajout de table demande une nouvelle version : les appareils déjà
     // installés migrent sans perdre leurs données.
-    this.version(1).stores(schema(['depots', 'actualisations']));
-    this.version(2).stores(schema(['actualisations']));
-    this.version(3).stores(schema([]));
+    const assistant: Collection[] = ['conversations', 'documents', 'demandes'];
+    this.version(1).stores(schema(['depots', 'actualisations', ...assistant]));
+    this.version(2).stores(schema(['actualisations', ...assistant]));
+    this.version(3).stores(schema(assistant));
+    this.version(4).stores(schema([]));
   }
 
   collection<T extends { id: string }>(nom: Collection): Table<T, string> {

@@ -635,3 +635,57 @@ export interface Actualisation {
   fichiers: string[];
   demo?: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Assistant (« Dr Rodier »), documents demandés et bibliothèque
+// ---------------------------------------------------------------------------
+
+export interface MessageChat {
+  role: 'user' | 'assistant';
+  texte: string;
+  instant: number;
+  /** Chapitres de tes cours sur lesquels la réponse s'appuie. */
+  sources?: { chapitreId: string; titre: string }[];
+}
+
+export interface Conversation {
+  id: string;
+  /** Matière du bot ; absent pour une conversation générale. */
+  matiereId?: string;
+  titre: string;
+  messages: MessageChat[];
+  creeLe: number;
+  majLe: number;
+}
+
+export type TypeDocument = 'fiche' | 'resume' | 'qcm' | 'flashcards' | 'libre';
+
+/** Document créé à la demande, rangé dans la bibliothèque (texte à mise en forme simple). */
+export interface DocumentBiblio {
+  id: string;
+  titre: string;
+  type: TypeDocument;
+  matiereId?: string;
+  chapitreId?: string;
+  contenu: string;
+  creeLe: number;
+  /** `instantane` : créé dans l'app ; `file` : créé en arrière-plan par le pipeline. */
+  origine: 'instantane' | 'file';
+}
+
+/** Demande de document trop longue pour être instantanée : traitée par le pipeline. */
+export interface DemandeDocument {
+  id: string;
+  type: TypeDocument;
+  matiereId?: string;
+  chapitreId?: string;
+  sujet: string;
+  consignes?: string;
+  /** Extraits de cours préparés par l'app (le pipeline ne relit pas le drive). */
+  contexte?: string;
+  statut: 'en_attente' | 'en_cours' | 'terminee' | 'erreur';
+  documentId?: string;
+  message?: string;
+  creeLe: number;
+  majLe: number;
+}

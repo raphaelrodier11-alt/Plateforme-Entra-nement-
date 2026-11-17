@@ -18,6 +18,7 @@ import {
   reinitialiserAcces,
   roleDeLaCle,
 } from './acces';
+import { assistant } from './assistant';
 import { appliquerDecision } from './decisions';
 import { depot, depotAdmin } from './depot';
 import { LIMITE_POUSSEE, LIMITE_TIRAGE, lireDoc, pousser, tirer } from './docs';
@@ -215,6 +216,7 @@ app.post('/api/admin/reinitialiser-acces', async (c) => {
 
 // --- Dépôt de fichiers -----------------------------------------------------
 
+app.route('/api/assistant', assistant);
 app.route('/api/depot', depot);
 app.route('/api/admin/depot', depotAdmin);
 

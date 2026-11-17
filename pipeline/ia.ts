@@ -11,6 +11,7 @@
  * consommation est comptée et un plafond de dépense arrête le traitement.
  */
 import { GoogleGenAI, type Part } from '@google/genai';
+import { choisirModele } from '../shared/modeles';
 import type { TarifModele } from '../shared/types';
 import { journal } from './journal';
 import { Compteur, tarifPour, type Niveau } from './tarifs';
@@ -59,26 +60,7 @@ const ESSAIS = 4;
 /** Écart minimal entre deux requêtes en mode gratuit (≈ 7 requêtes par minute). */
 const ECART_GRATUIT_MS = 8500;
 
-/**
- * Choisit un modèle dans la liste publiée : la version stable la plus
- * récente de la famille voulue (les préversions ne servent qu'à défaut).
- */
-export function choisirModele(noms: string[], famille: 'flash' | 'pro'): string | undefined {
-  const candidats = noms
-    .map((nom) => nom.replace(/^models\//, ''))
-    .map((nom) => ({ nom, m: /^gemini-(\d+(?:\.\d+)?)-(flash|pro)(-preview)?(?:-[\d-]+)?$/.exec(nom) }))
-    .filter((c): c is { nom: string; m: RegExpExecArray } => !!c.m && c.m[2] === famille)
-    .map((c) => ({ nom: c.nom, version: Number(c.m[1]), stable: !c.m[3], date: /-\d{2}-\d{2,4}$/.test(c.nom) }))
-    // Stable avant préversion, version la plus haute, alias court avant alias daté.
-    .sort(
-      (a, b) =>
-        Number(b.stable) - Number(a.stable) ||
-        b.version - a.version ||
-        Number(a.date) - Number(b.date) ||
-        a.nom.length - b.nom.length,
-    );
-  return candidats[0]?.nom;
-}
+export { choisirModele };
 
 /** Décode la réponse du modèle, en tolérant un bloc de code autour du JSON. */
 export function decoderJson(texte: string): unknown {

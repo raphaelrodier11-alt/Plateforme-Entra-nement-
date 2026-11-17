@@ -7,6 +7,8 @@ export interface Env {
   /** Identifiants OAuth Google pour la lecture seule du drive. */
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
+  /** Clé Gemini de l'assistant (projet Google gratuit distinct de celui de l'import). */
+  GEMINI_CHAT_KEY?: string;
   /** Facultatif : jeton GitHub pour lancer le pipeline sans attendre. */
   GITHUB_DISPATCH_TOKEN?: string;
   GITHUB_REPO?: string;

@@ -33,6 +33,10 @@ export const COLLECTIONS = {
   decisions: 'utilisateur',
   taches: 'utilisateur',
   revues: 'utilisateur',
+  // Assistant : conversations, documents demandés et leur file d'attente.
+  conversations: 'utilisateur',
+  documents: 'utilisateur',
+  demandes: 'utilisateur',
   // Textes extraits des fichiers : volumineux, utiles au seul pipeline.
   textes: 'interne',
 } as const satisfies Record<string, Portee>;
