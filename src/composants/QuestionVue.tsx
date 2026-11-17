@@ -4,11 +4,15 @@
  * correction fournie, la saisie est verrouillée et chaque élément indique
  * s'il était juste (icône + libellé, jamais la couleur seule).
  */
-import { Check, CircleAlert, X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Check, CircleAlert, MessageCircleQuestion, X } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import type { Correction } from '../../shared/bareme';
 import type { CasClinique, Proposition, Question, ReponseDonnee } from '../../shared/types';
-import { cx } from './ui';
+import { useDonnees } from '../etat/donnees';
+import { ErreurAssistant, demandeExplication, nouvelleConversation, poserQuestion } from '../lib/assistant';
+import { Docteur } from './Docteur';
+import { Markdown } from './Markdown';
+import { Bouton, cx } from './ui';
 
 interface Props {
   question: Question;
@@ -236,6 +240,48 @@ function Trous({ question, reponse, onChange, correction, solution }: Props) {
   );
 }
 
+/** Bouton « Explique-moi mon erreur » : le Dr Rodier explique, avec le cours, et la conversation est gardée. */
+function ExpliquerErreur({ question, reponse }: { question: Question; reponse: ReponseDonnee }) {
+  const d = useDonnees();
+  const [texte, setTexte] = useState<string | undefined>();
+  const [occupe, setOccupe] = useState(false);
+  const [erreur, setErreur] = useState<string | undefined>();
+
+  const demander = async () => {
+    setOccupe(true);
+    setErreur(undefined);
+    try {
+      const conv = await poserQuestion(d, nouvelleConversation(question.matiereId), demandeExplication(question, reponse));
+      setTexte(conv.messages.at(-1)?.texte);
+    } catch (e) {
+      setErreur(e instanceof ErreurAssistant ? e.message : 'Une erreur est survenue. Réessaie.');
+    } finally {
+      setOccupe(false);
+    }
+  };
+
+  return (
+    <div className="mt-4">
+      {!texte && (
+        <Bouton icone={MessageCircleQuestion} disabled={occupe} onClick={() => void demander()}>
+          {occupe ? 'Le Dr Rodier réfléchit…' : 'Explique-moi mon erreur'}
+        </Bouton>
+      )}
+      {erreur && (
+        <p role="alert" className="mt-2 rounded-xl border border-critique/50 bg-critique/10 p-3 text-sm">
+          {erreur}
+        </p>
+      )}
+      {texte && (
+        <div className="apparait flex items-start gap-2.5 rounded-2xl bg-surface-2 p-3.5">
+          <Docteur taille={30} className="mt-0.5 shrink-0" />
+          <Markdown texte={texte} className="min-w-0" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function QuestionVue(props: Props) {
   const { question, cas } = props;
   return (
@@ -260,6 +306,9 @@ export function QuestionVue(props: Props) {
         <VraiFaux {...props} />
       ) : (
         <Choix {...props} />
+      )}
+      {props.correction && !props.solution && props.correction.nbErreurs > 0 && (
+        <ExpliquerErreur question={question} reponse={props.reponse} />
       )}
     </div>
   );

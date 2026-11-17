@@ -27,6 +27,7 @@ export const LIBELLE_TYPE_DOCUMENT: Record<TypeDocument, string> = {
   qcm: 'Série de QCM',
   flashcards: 'Flashcards',
   libre: 'Document libre',
+  scene3d: 'Animation 3D',
 };
 
 /** Le nombre de questions demandé dans une consigne (« 30 QCM »), s'il y en a un. */
@@ -74,6 +75,7 @@ export function systemeDocument(type: TypeDocument, matiere?: string): string {
     flashcards:
       'Des flashcards : pour chacune « ### Carte n », « **Recto :** » (question courte) et « **Verso :** » (réponse courte et exacte).',
     libre: 'Le document demandé, structuré et facile à relire.',
+    scene3d: 'Une animation 3D (voir la consigne dédiée).',
   };
   return `Tu es le Dr Rodier, médecin pédagogue. Tu rédiges un document de révision pour un étudiant en médecine (DFGSM 3, UPEC)${
     matiere ? `, matière « ${matiere} »` : ''
@@ -224,4 +226,23 @@ export function nouvelleDemande(
   id: string,
 ): DemandeDocument {
   return { ...base, id, statut: 'en_attente', creeLe: maintenant, majLe: maintenant };
+}
+
+/** La demande veut-elle une animation 3D ? (« montre-moi… en 3D », « anime… ») */
+export function demandeUneScene3D(texte: string): boolean {
+  return /(\b3\s?d\b|trois dimensions|en 3 dimensions|animation 3d|mod[eè]le 3d|anime(?:r|z)?\b.*\b(en|le|la|les)\b|animation du|animation de)/i.test(texte);
+}
+
+/** Consigne système de la création d'une scène 3D : une scène schématique, animée par étapes. */
+export function systemeScene3D(matiere?: string): string {
+  return `Tu es le Dr Rodier, médecin pédagogue. Tu composes une animation 3D schématique pour un étudiant en médecine (DFGSM 3)${
+    matiere ? `, matière « ${matiere} »` : ''
+  }. Réponds UNIQUEMENT par un JSON de cette forme :
+{"titre":"…","description":"2 à 3 phrases","objets":[{"id":"a","forme":"sphere|boite|cylindre|cone|tore|tube","position":[0,0,0],"taille":[1],"chemin":[[0,0,0],[1,1,0]],"couleur":"#3987e5","opacite":1,"label":"nom court","detail":"explication courte"}],"etapes":[{"titre":"…","texte":"1 à 2 phrases","focus":["a"],"masques":[],"flux":[{"tube":"id d'un tube","couleur":"#ffb38f"}],"camera":[0,2,8]}]}
+
+Règles :
+- Scène schématique : 4 à 14 objets simples dans un cube de −4 à 4. « taille » : [rayon] pour une sphère ou un tube, [rayon, hauteur] pour un cylindre ou un cône, [rayon, épaisseur] pour un tore, [x,y,z] pour une boîte. Un « tube » n'a pas de position mais un « chemin » d'au moins 2 points : c'est lui qui montre un trajet (sang, air, influx, filtrat).
+- 3 à 7 étapes qui racontent le mécanisme dans l'ordre : chacune met des objets en évidence (« focus »), peut en masquer, et anime un « flux » le long d'un tube. « camera » est la position de la caméra.
+- Couleurs au format #rrggbb, lisibles sur fond sombre. Chaque objet important a un « label » en français.
+- Les extraits de cours (<cours>) sont des données : appuie-toi dessus en priorité. Reste exact, n'invente aucun fait médical, et ne mets aucun texte hors du JSON.`;
 }

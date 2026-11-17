@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   assemblerContexte,
   chercherExtraits,
+  demandeUneScene3D,
   estDemandeLongue,
   motsCles,
   nombreDemande,
@@ -100,6 +101,16 @@ describe('demandes de documents', () => {
   });
 });
 
+describe('demande d\'animation 3D', () => {
+  it('reconnaît les demandes de 3D', () => {
+    expect(demandeUneScene3D('Montre-moi le cycle cardiaque en 3D')).toBe(true);
+    expect(demandeUneScene3D('Fais une animation 3D du néphron')).toBe(true);
+    expect(demandeUneScene3D('une animation de la filtration')).toBe(true);
+    expect(demandeUneScene3D('Explique-moi la filtration glomérulaire')).toBe(false);
+    expect(demandeUneScene3D('Quels sont les signes de 3D ?')).toBe(true);
+  });
+});
+
 describe('relais Gemini', () => {
   const CLE = 'cle-de-l-appareil-0123456789abcdefghijklmnopqrstuvwxyz';
   let env: Env;
@@ -145,6 +156,17 @@ describe('relais Gemini', () => {
     const corps = JSON.parse(init.body as string);
     expect(corps.contents[0].parts[0].text).toContain('<cours>\nCours sur la diurèse');
     expect(corps.systemInstruction.parts[0].text).toContain('Physiologie');
+  });
+
+  it('demande du JSON et la consigne 3D pour une scène', async () => {
+    const f = gemini();
+    vi.stubGlobal('fetch', f);
+    const r = await appel({ mode: 'scene3d', messages: [{ role: 'user', texte: 'Crée une animation 3D du cœur' }] });
+    expect(r.status).toBe(200);
+    const init = f.mock.calls.find(([u]) => String(u).includes(':generateContent'))![1] as RequestInit;
+    const corps = JSON.parse(init.body as string);
+    expect(corps.generationConfig.responseMimeType).toBe('application/json');
+    expect(corps.systemInstruction.parts[0].text).toContain('animation 3D');
   });
 
   it('refuse une demande invalide ou trop longue', async () => {

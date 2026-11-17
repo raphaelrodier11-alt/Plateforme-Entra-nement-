@@ -177,7 +177,8 @@ function Canevas({ options, className, label }: { options: Options; className: s
 }
 
 const OPTIONS_MONITEUR: Options = { vitesse: 130, amplitude: 1, grille: true, trait: 2.6 };
-const OPTIONS_FOND: Options = { vitesse: 90, amplitude: 0.8, trait: 1.4 };
+const OPTIONS_FOND: Options = { vitesse: 110, amplitude: 0.9, trait: 2 };
+const OPTIONS_BANDEAU: Options = { vitesse: 120, amplitude: 1, grille: true, trait: 2.4 };
 
 /** Moniteur de l'accueil : grille, tracé qui défile, lueur à chaque battement. */
 export function MoniteurEcg({ className = '' }: { className?: string }) {
@@ -189,7 +190,7 @@ export function FondEcg() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-x-0 top-0 z-0 h-24 opacity-40 [mask-image:linear-gradient(to_bottom,black_30%,transparent)] print:hidden"
+      className="pointer-events-none fixed inset-x-0 top-0 z-0 h-32 opacity-80 [mask-image:linear-gradient(to_bottom,black_40%,transparent)] print:hidden"
     >
       <Canevas options={OPTIONS_FOND} className="block h-full w-full" />
     </div>
@@ -197,3 +198,15 @@ export function FondEcg() {
 }
 
 export { PERIODE_MS };
+
+/** Bandeau moniteur en haut de chaque page (sauf l'accueil, qui a son grand moniteur). */
+export function BandeauEcg() {
+  return (
+    <div className="carte pouls relative mb-5 h-16 overflow-hidden print:hidden" aria-hidden>
+      <Canevas options={OPTIONS_BANDEAU} className="block h-full w-full" />
+      <span className="absolute top-1.5 left-3 flex items-center gap-1.5 text-[10px] font-semibold tracking-widest text-ecg uppercase">
+        <span className="size-1.5 animate-pulse rounded-full bg-ecg" /> Dr Rodier · en direct
+      </span>
+    </div>
+  );
+}

@@ -2,7 +2,9 @@
  * Assistant « Dr Rodier » côté application : choix des extraits de cours,
  * appel au serveur, enregistrement des conversations et des documents.
  */
+import { validerScene } from '../../pipeline/validation';
 import {
+  demandeUneScene3D,
   LIBELLE_TYPE_DOCUMENT,
   LIMITES_ASSISTANT,
   assemblerContexte,
@@ -12,6 +14,9 @@ import {
   titreConversation,
 } from '../../shared/assistant';
 import type {
+  Scene3D,
+  Question,
+  ReponseDonnee,
   Conversation,
   DemandeDocument,
   DocumentBiblio,
@@ -100,6 +105,27 @@ export async function poserQuestion(d: Donnees, conversation: Conversation, ques
   };
   await enregistrer('conversations', enCours);
 
+  // « Montre-moi … en 3D » : le Dr Rodier compose une animation, rangée aussi dans la bibliothèque.
+  if (demandeUneScene3D(texte)) {
+    const { scene } = await creerDocumentScene(d, { sujet: texte, matiereId: conversation.matiereId });
+    const finale: Conversation = {
+      ...enCours,
+      messages: [
+        ...enCours.messages,
+        {
+          role: 'assistant',
+          texte: `Voilà ton animation 3D : **${scene.titre}**. Fais-la tourner du doigt et avance étape par étape. Je l'ai aussi rangée dans ta bibliothèque.`,
+          instant: Date.now(),
+          scene,
+          sources: extraits.map((e) => ({ chapitreId: e.chapitreId, titre: e.titre })),
+        },
+      ],
+      majLe: Date.now(),
+    };
+    await enregistrer('conversations', finale);
+    return finale;
+  }
+
   const reponse = await appeler({
     mode: 'discussion',
     matiere: matiere?.nom,
@@ -144,6 +170,10 @@ export async function demanderDocument(
   d: Donnees,
   p: ParametresDocument,
 ): Promise<{ document?: DocumentBiblio; demande?: DemandeDocument }> {
+  if (p.type === 'scene3d') {
+    const { document } = await creerDocumentScene(d, { sujet: `${p.sujet}${p.consignes ? ` (${p.consignes})` : ''}`, matiereId: p.matiereId, chapitreId: p.chapitreId });
+    return { document };
+  }
   const matiere = p.matiereId ? d.matiereParId.get(p.matiereId) : undefined;
   const extraits = chercherExtraits({
     question: `${p.sujet} ${p.consignes ?? ''}`,
@@ -188,4 +218,83 @@ export async function demanderDocument(
 
 export async function supprimerDocument(id: string): Promise<void> {
   await supprimer('documents', id);
+}
+
+/** Texte décrivant une question et la réponse donnée, pour demander au bot d'expliquer l'erreur. */
+export function demandeExplication(question: Question, reponse: ReponseDonnee): string {
+  const lettre = (i: number) => String.fromCharCode(65 + i);
+  const lignes: string[] = [`Explique-moi mon erreur à cette question${question.piege ? ' (un piège classique)' : ''} :`, '', question.enonce];
+  if (question.propositions?.length) {
+    lignes.push('');
+    question.propositions.forEach((p, i) => lignes.push(`${lettre(i)}. ${p.texte}`));
+    const cochees = (reponse.cochees ?? []).map((id) => question.propositions!.findIndex((p) => p.id === id)).filter((i) => i >= 0);
+    const justes = question.propositions.map((p, i) => (p.correcte ? i : -1)).filter((i) => i >= 0);
+    if (question.type === 'vrai_faux') {
+      const jugements = reponse.jugements ?? {};
+      lignes.push('', `Mes réponses (vrai/faux) : ${question.propositions.map((p, i) => `${lettre(i)} = ${jugements[p.id] === undefined ? 'pas répondu' : jugements[p.id] ? 'vrai' : 'faux'}`).join(', ')}`);
+      lignes.push(`Réponses justes : ${question.propositions.map((p, i) => `${lettre(i)} = ${p.correcte ? 'vrai' : 'faux'}`).join(', ')}`);
+    } else {
+      lignes.push('', `J'ai coché : ${cochees.length ? cochees.map(lettre).join(', ') : 'rien'}`, `Les bonnes réponses : ${justes.map(lettre).join(', ')}`);
+    }
+  } else if (question.trous?.length) {
+    lignes.push('', `Mes réponses : ${question.trous.map((t) => `${t.id} = ${reponse.textes?.[t.id] ?? '—'}`).join(' ; ')}`, `Attendu : ${question.trous.map((t) => `${t.id} = ${t.reponses[0] ?? ''}`).join(' ; ')}`);
+  }
+  if (question.explication) lignes.push('', `Explication fournie : ${question.explication}`);
+  lignes.push('', "Dis-moi pourquoi je me suis trompé, rappelle la notion de cours concernée, et donne-moi un moyen de ne plus tomber dans ce piège.");
+  return lignes.join('\n');
+}
+
+function lireJson(texte: string): unknown {
+  return JSON.parse(texte.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''));
+}
+
+/** Demande une animation 3D ; une scène invalide est redemandée une fois. */
+export async function creerScene3D(
+  d: Donnees,
+  p: { sujet: string; matiereId?: string; chapitreId?: string },
+): Promise<Scene3D> {
+  const matiere = p.matiereId ? d.matiereParId.get(p.matiereId) : undefined;
+  const extraits = chercherExtraits({
+    question: p.sujet,
+    matiereId: p.matiereId,
+    chapitres: p.chapitreId ? d.chapitres.filter((c) => c.id === p.chapitreId) : d.chapitres,
+    fiches: d.fiches,
+  });
+  const corps = {
+    mode: 'scene3d',
+    matiere: matiere?.nom,
+    contexte: assemblerContexte(extraits),
+    messages: [{ role: 'user', texte: `Crée une animation 3D de : ${p.sujet}` }],
+  };
+  for (let essai = 0; essai < 2; essai++) {
+    const brut = await appeler(corps);
+    try {
+      const scene = validerScene(lireJson(brut));
+      if (scene && scene.objets.length >= 2 && scene.etapes.length >= 1) return scene;
+    } catch {
+      // Réponse illisible : un second essai.
+    }
+  }
+  throw new ErreurAssistant('indisponible', "Je n'ai pas réussi à composer cette animation. Reformule ou précise le sujet.");
+}
+
+/** Crée l'animation et la range dans la bibliothèque. */
+export async function creerDocumentScene(
+  d: Donnees,
+  p: { sujet: string; matiereId?: string; chapitreId?: string },
+): Promise<{ scene: Scene3D; document: DocumentBiblio }> {
+  const scene = await creerScene3D(d, p);
+  const document: DocumentBiblio = {
+    id: nouvelId('doc'),
+    titre: scene.titre || p.sujet.slice(0, 70),
+    type: 'scene3d',
+    matiereId: p.matiereId,
+    chapitreId: p.chapitreId,
+    contenu: scene.description ?? '',
+    scene,
+    creeLe: Date.now(),
+    origine: 'instantane',
+  };
+  await enregistrer('documents', document);
+  return { scene, document };
 }

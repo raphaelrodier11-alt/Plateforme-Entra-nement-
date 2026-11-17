@@ -7,7 +7,7 @@
  * jamais l'import, et inversement).
  */
 import { Hono } from 'hono';
-import { LIMITES_ASSISTANT, systemeDiscussion, systemeDocument } from '../shared/assistant';
+import { LIMITES_ASSISTANT, systemeDiscussion, systemeDocument, systemeScene3D } from '../shared/assistant';
 import { choisirModele } from '../shared/modeles';
 import type { TypeDocument } from '../shared/types';
 import type { Env, Role } from './env';
@@ -17,7 +17,7 @@ type Contexte = { Bindings: Env; Variables: { role: Role } };
 export const assistant = new Hono<Contexte>();
 
 const API = 'https://generativelanguage.googleapis.com/v1beta';
-const TYPES: TypeDocument[] = ['fiche', 'resume', 'qcm', 'flashcards', 'libre'];
+const TYPES: TypeDocument[] = ['fiche', 'resume', 'qcm', 'flashcards', 'libre', 'scene3d'];
 
 let modeleEnCache: { nom: string; jusqua: number } | undefined;
 
@@ -61,7 +61,7 @@ assistant.post('/', async (c) => {
   const messages = messagesValides(corps.messages);
   const contexte = typeof corps.contexte === 'string' ? corps.contexte : '';
   const matiere = typeof corps.matiere === 'string' ? corps.matiere.slice(0, 120) : undefined;
-  const mode = corps.mode === 'document' ? 'document' : 'discussion';
+  const mode = corps.mode === 'document' ? 'document' : corps.mode === 'scene3d' ? 'scene3d' : 'discussion';
   const type = TYPES.includes(corps.type as TypeDocument) ? (corps.type as TypeDocument) : 'libre';
   if (!messages || contexte.length > LIMITES_ASSISTANT.contexte + 2_000) return c.json({ erreur: 'demande_invalide' }, 400);
 
@@ -88,10 +88,19 @@ assistant.post('/', async (c) => {
       headers: { 'x-goog-api-key': cle, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         systemInstruction: {
-          parts: [{ text: mode === 'document' ? systemeDocument(type, matiere) : systemeDiscussion(matiere) }],
+          parts: [
+            {
+              text:
+                mode === 'scene3d' ? systemeScene3D(matiere) : mode === 'document' ? systemeDocument(type, matiere) : systemeDiscussion(matiere),
+            },
+          ],
         },
         contents: contenus,
-        generationConfig: { temperature: mode === 'document' ? 0.3 : 0.5, maxOutputTokens: mode === 'document' ? 12_000 : 3_000 },
+        generationConfig: {
+          temperature: mode === 'discussion' ? 0.5 : 0.3,
+          maxOutputTokens: mode === 'document' ? 12_000 : mode === 'scene3d' ? 8_000 : 3_000,
+          ...(mode === 'scene3d' ? { responseMimeType: 'application/json' } : {}),
+        },
       }),
     });
     if (reponse.status === 429) return c.json({ erreur: 'quota' }, 429);

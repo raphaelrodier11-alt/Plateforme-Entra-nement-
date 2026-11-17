@@ -17,10 +17,10 @@ import {
   TriangleAlert,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { LIBELLE_TYPE_DOCUMENT } from '../../shared/assistant';
-import type { Conversation, DemandeDocument, DocumentBiblio, TypeDocument } from '../../shared/types';
+import type { Conversation, DemandeDocument, DocumentBiblio, Scene3D, TypeDocument } from '../../shared/types';
 import { Docteur } from '../composants/Docteur';
 import { Markdown } from '../composants/Markdown';
 import { Bouton, Carte, EtatVide, Onglets, Pastille, Puce, STYLE_CHAMP, TitrePage, cx } from '../composants/ui';
@@ -38,6 +38,16 @@ import {
 import { couleurMatiere } from '../lib/couleurs';
 
 type Vue = 'discuter' | 'creer' | 'biblio';
+
+const Scene3DVue = lazy(() => import('../fiches/Scene3D'));
+
+function SceneChargee({ scene }: { scene: Scene3D }) {
+  return (
+    <Suspense fallback={<p className="py-6 text-center text-sm text-muet">Chargement de la 3D…</p>}>
+      <Scene3DVue scene={scene} />
+    </Suspense>
+  );
+}
 
 const dateCourte = (t: number) =>
   new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -183,6 +193,7 @@ function Discussion() {
     matiere ? `Quels sont les pièges classiques en ${matiere.nom} ?` : 'Qu’est-ce que je devrais réviser en priorité ?',
     chapitresMatiere[0] ? `Explique-moi simplement « ${chapitresMatiere[0].titre} »` : undefined,
     chapitresMatiere[0] ? `Pose-moi 5 questions sur « ${chapitresMatiere[0].titre} »` : undefined,
+    chapitresMatiere[0] ? `Montre-moi « ${chapitresMatiere[0].titre} » en 3D` : undefined,
     'Donne-moi un moyen mnémotechnique pour retenir ça',
   ].filter((s): s is string => !!s);
 
@@ -251,6 +262,11 @@ function Discussion() {
           {courante.messages.map((m, i) => (
             <Bulle key={`${m.instant}-${i}`} role={m.role}>
               {m.role === 'assistant' ? <Markdown texte={m.texte} /> : <p className="text-sm whitespace-pre-wrap">{m.texte}</p>}
+              {m.scene && (
+                <div className="mt-3 w-[min(78vw,640px)] max-w-full">
+                  <SceneChargee scene={m.scene} />
+                </div>
+              )}
               {m.sources && m.sources.length > 0 && (
                 <p className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-bord pt-2 text-xs text-muet">
                   <BookMarked size={13} aria-hidden /> D'après :
@@ -337,7 +353,7 @@ function Bulle({ role, children }: { role: 'user' | 'assistant'; children: React
 // Création de documents
 // ---------------------------------------------------------------------------
 
-const TYPES: TypeDocument[] = ['fiche', 'resume', 'qcm', 'flashcards', 'libre'];
+const TYPES: TypeDocument[] = ['fiche', 'resume', 'qcm', 'flashcards', 'scene3d', 'libre'];
 
 function CreerDocument({ onCree }: { onCree: () => void }) {
   const d = useDonnees();
@@ -423,7 +439,7 @@ function CreerDocument({ onCree }: { onCree: () => void }) {
             value={sujet}
             onChange={(e) => setSujet(e.target.value)}
             maxLength={300}
-            placeholder="Ex. : la régulation de la filtration glomérulaire"
+            placeholder={type === 'scene3d' ? 'Ex. : le trajet du sang dans le cœur' : 'Ex. : la régulation de la filtration glomérulaire'}
             className={STYLE_CHAMP}
           />
         </label>
@@ -526,6 +542,7 @@ function Bibliotheque() {
         <h2 className="mb-3 text-xl font-semibold tracking-tight" style={{ borderLeft: `4px solid ${c.accent}`, paddingLeft: 10 }}>
           {doc.titre}
         </h2>
+        {doc.scene ? <SceneChargee scene={doc.scene} /> : null}
         <Markdown texte={doc.contenu} />
         {doc.matiereId && (
           <p className="mt-4 text-xs text-muet">{d.matiereParId.get(doc.matiereId)?.nom}</p>

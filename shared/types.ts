@@ -648,6 +648,8 @@ export interface MessageChat {
   instant: number;
   /** Chapitres de tes cours sur lesquels la réponse s'appuie. */
   sources?: { chapitreId: string; titre: string }[];
+  /** Animation 3D créée à la demande. */
+  scene?: Scene3D;
 }
 
 export interface Conversation {
@@ -660,7 +662,7 @@ export interface Conversation {
   majLe: number;
 }
 
-export type TypeDocument = 'fiche' | 'resume' | 'qcm' | 'flashcards' | 'libre';
+export type TypeDocument = 'fiche' | 'resume' | 'qcm' | 'flashcards' | 'libre' | 'scene3d';
 
 /** Document créé à la demande, rangé dans la bibliothèque (texte à mise en forme simple). */
 export interface DocumentBiblio {
@@ -670,6 +672,8 @@ export interface DocumentBiblio {
   matiereId?: string;
   chapitreId?: string;
   contenu: string;
+  /** Animation 3D (type `scene3d`). */
+  scene?: Scene3D;
   creeLe: number;
   /** `instantane` : créé dans l'app ; `file` : créé en arrière-plan par le pipeline. */
   origine: 'instantane' | 'file';
