@@ -66,3 +66,31 @@ export function estArret(erreur: unknown): boolean {
   const nom = (erreur as Error | undefined)?.name;
   return nom === 'PlafondAtteint' || nom === 'QuotaAtteint';
 }
+
+/** Chapitres traités en même temps : ils sont indépendants, et chaque modèle gratuit a sa propre cadence. */
+export const CHAPITRES_EN_PARALLELE = 3;
+
+/**
+ * Exécute `f` sur chaque élément, `n` à la fois. À la première erreur, on cesse d'en
+ * lancer de nouveaux, on laisse finir ceux en cours, puis on relance l'erreur.
+ */
+export async function enParallele<T>(elements: T[], n: number, f: (element: T) => Promise<void>): Promise<void> {
+  let suivant = 0;
+  let erreur: unknown;
+  let echec = false;
+  const travailleur = async (): Promise<void> => {
+    while (suivant < elements.length && !echec) {
+      const element = elements[suivant++]!;
+      try {
+        await f(element);
+      } catch (e) {
+        if (!echec) {
+          echec = true;
+          erreur = e;
+        }
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(n, elements.length) }, travailleur));
+  if (echec) throw erreur;
+}

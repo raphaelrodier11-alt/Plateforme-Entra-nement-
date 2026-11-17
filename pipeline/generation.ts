@@ -27,6 +27,8 @@ import {
   iaRequise,
   notifier,
   tempsEcoule,
+  CHAPITRES_EN_PARALLELE,
+  enParallele,
   texteDe,
   type Contexte,
   estArret,
@@ -179,7 +181,7 @@ async function enrichirAnnales(c: Contexte, nouvelles: Question[]): Promise<Ques
   for (const q of nouvelles) parChapitre.set(q.chapitreId, [...(parChapitre.get(q.chapitreId) ?? []), q]);
   const enrichies = new Map(nouvelles.map((q) => [q.id, q]));
 
-  for (const [chapitreId, questions] of parChapitre) {
+  await enParallele([...parChapitre], CHAPITRES_EN_PARALLELE, async ([chapitreId, questions]) => {
     const chapitre = c.memoire.lire<Chapitre>('chapitres', chapitreId);
     const cours = chapitre ? coursDuChapitre(c, chapitre).texte : '';
     const titre = chapitre?.titre ?? 'Annales';
@@ -235,7 +237,7 @@ async function enrichirAnnales(c: Contexte, nouvelles: Question[]): Promise<Ques
         });
       }
     }
-  }
+  });
 
   // Une question sans réponse fiable n'est pas publiée ; les autres ont
   // toujours une explication, au minimum le rappel du corrigé officiel.
@@ -557,11 +559,11 @@ async function piecesDuChapitre(c: Contexte, fichiers: Fichier[]): Promise<Piece
 
 export async function genererChapitres(c: Contexte): Promise<void> {
   const ia = iaRequise(c);
-  for (const chapitre of c.memoire.liste<Chapitre>('chapitres').filter((x) => x.aGenerer)) {
-    if (tempsEcoule(c)) break;
+  await enParallele(c.memoire.liste<Chapitre>('chapitres').filter((x) => x.aGenerer), CHAPITRES_EN_PARALLELE, async (chapitre) => {
+    if (tempsEcoule(c)) return;
     const { texte: cours, fichiers, complet } = coursDuChapitre(c, chapitre);
     // On attend que tous les fichiers du chapitre soient lus avant de générer.
-    if (!complet || !cours) continue;
+    if (!complet || !cours) return;
 
     try {
       const questionsChapitre = c.memoire.liste<Question>('questions').filter((q) => q.chapitreId === chapitre.id);
@@ -681,7 +683,7 @@ export async function genererChapitres(c: Contexte): Promise<void> {
       if (estArret(erreur)) throw erreur;
       journal(`Génération d'un chapitre en échec : ${erreurPublique(erreur)}`);
     }
-  }
+  });
 }
 
 /** Ajoute des questions d'examen blanc inédites à un chapitre (à la demande). */
@@ -713,17 +715,17 @@ export async function ajouterQuestions(c: Contexte, chapitreId: string, nombre =
 
 export async function verifierChapitres(c: Contexte): Promise<void> {
   const ia = iaRequise(c);
-  for (const chapitre of c.memoire.liste<Chapitre>('chapitres').filter((x) => x.aVerifier && !x.aGenerer)) {
-    if (tempsEcoule(c)) break;
+  await enParallele(c.memoire.liste<Chapitre>('chapitres').filter((x) => x.aVerifier && !x.aGenerer), CHAPITRES_EN_PARALLELE, async (chapitre) => {
+    if (tempsEcoule(c)) return;
     const { texte: cours, fichiers, complet } = coursDuChapitre(c, chapitre);
     const annales = c.memoire
       .liste<Question>('questions')
       .filter((q) => q.chapitreId === chapitre.id && q.source === 'annale')
       .slice(0, 60);
-    if (!complet) continue;
+    if (!complet) return;
     if (!cours && annales.length === 0) {
       await c.memoire.ecrire<Chapitre>('chapitres', { ...chapitre, aVerifier: false });
-      continue;
+      return;
     }
 
     try {
@@ -773,5 +775,5 @@ export async function verifierChapitres(c: Contexte): Promise<void> {
       if (estArret(erreur)) throw erreur;
       journal(`Vérification d'un chapitre en échec : ${erreurPublique(erreur)}`);
     }
-  }
+  });
 }

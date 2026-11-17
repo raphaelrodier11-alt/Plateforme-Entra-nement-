@@ -119,7 +119,6 @@ export async function iaGemini(options: {
   const masse = options.modeleMasse || choisirModele(noms, 'flash') || '';
   // Mode gratuit : liste de secours, chaque modèle ayant son propre quota quotidien.
   const candidats = gratuit && !options.modeleMasse ? modelesGratuits(noms) : [masse];
-  let rang = 0;
   let envoyees = 0;
   // Les modèles « Pro » ne sont pas gratuits : en mode gratuit, un seul modèle sert à tout.
   const modeles: Record<Niveau, string> = {
@@ -139,9 +138,28 @@ export async function iaGemini(options: {
         expert: tarifPour(modeles.expert, 'expert', options.tarifs),
       };
   const compteur = new Compteur();
-  let dernierAppel = 0;
   let ecart = ECART_MIN_MS;
   let calmes = 0;
+  // Chaque modèle gratuit a sa propre cadence et son propre quota du jour.
+  const etatModeles = candidats.map(() => ({ prochain: 0, epuise: false }));
+  const estLite = (nom: string | undefined): boolean => /flash-lite/.test(nom ?? '');
+  /**
+   * Réserve le prochain créneau libre (plusieurs requêtes peuvent partir en même temps) :
+   * on alterne entre les modèles Flash, et on n'utilise « lite » que si tous les Flash
+   * ont atteint leur limite du jour.
+   */
+  const creneau = async (): Promise<number> => {
+    const vivants = candidats.map((_, i) => i).filter((i) => !etatModeles[i]!.epuise);
+    if (vivants.length === 0) throw new QuotaAtteint(true);
+    const flash = vivants.filter((i) => !estLite(candidats[i]));
+    const choix = flash.length > 0 ? flash : vivants;
+    const i = choix.reduce((a, b) => (etatModeles[a]!.prochain <= etatModeles[b]!.prochain ? a : b));
+    const debut = Math.max(Date.now(), etatModeles[i]!.prochain);
+    etatModeles[i]!.prochain = debut + ecart;
+    const attente = debut - Date.now();
+    if (attente > 0) await new Promise((r) => setTimeout(r, attente));
+    return i;
+  };
 
   const enParties = async (pieces: Piece[]): Promise<{ parties: Part[]; aSupprimer: string[] }> => {
     const parties: Part[] = [];
@@ -170,21 +188,17 @@ export async function iaGemini(options: {
     },
     async json(demande) {
       if (compteur.total >= options.plafondUsd) throw new PlafondAtteint(compteur.total);
-      if (gratuit) {
-        // Le palier gratuit limite le nombre de requêtes par minute.
-        const attente = dernierAppel + ecart - Date.now();
-        if (attente > 0) await new Promise((r) => setTimeout(r, attente));
-        dernierAppel = Date.now();
-      }
       const { parties, aSupprimer } = await enParties(demande.pieces ?? []);
       try {
         let rappel = '';
         let attentes429 = 0;
         for (let essai = 1; ; essai++) {
+          let indice = -1;
           try {
+            indice = gratuit ? await creneau() : -1;
             envoyees += 1;
             const reponse = await client.models.generateContent({
-              model: gratuit ? (candidats[rang] ?? masse) : modeles[demande.niveau],
+              model: gratuit ? (candidats[indice] ?? masse) : modeles[demande.niveau],
               contents: [{ role: 'user', parts: [...parties, { text: demande.consigne + rappel }] }],
               config: {
                 systemInstruction: demande.systeme,
@@ -219,15 +233,16 @@ export async function iaGemini(options: {
                 attentes429 += 1;
                 ecart = Math.min(ECART_MAX_MS, ecart + 1500);
                 calmes = 0;
-                journal(`Limite par minute (${info.quota ?? 'quota non précisé'}) : attente de ${Math.round(delai / 1000)} s`);
-                await new Promise((r) => setTimeout(r, delai));
+                journal(`Limite par minute (${info.quota ?? 'quota non précisé'}) : ce modèle patiente ${Math.round(delai / 1000)} s`);
+                if (gratuit && indice >= 0) etatModeles[indice]!.prochain = Date.now() + delai;
+                else await new Promise((r) => setTimeout(r, delai));
                 essai -= 1;
                 continue;
               }
-              if (info.quotidien && gratuit && rang + 1 < candidats.length) {
-                // Limite du jour de ce modèle : on essaie le modèle gratuit suivant, qui a son propre quota.
-                journal(`Limite du jour atteinte pour ${candidats[rang]} : bascule sur ${candidats[rang + 1]}`);
-                rang += 1;
+              if (info.quotidien && gratuit && indice >= 0) {
+                // Limite du jour de ce modèle : on passe aux autres modèles gratuits, qui ont chacun leur quota.
+                etatModeles[indice]!.epuise = true;
+                journal(`Limite du jour atteinte pour ${candidats[indice]} : on continue avec les autres modèles gratuits`);
                 essai -= 1;
                 continue;
               }

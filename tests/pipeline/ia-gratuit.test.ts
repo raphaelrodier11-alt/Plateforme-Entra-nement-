@@ -42,7 +42,9 @@ describe('couche Gemini en mode gratuit', () => {
     const suite = ia.json(demande('expert'));
     await vi.advanceTimersByTimeAsync(9_000);
     await suite;
-    expect(appels).toEqual(['gemini-3.8-flash', 'gemini-3.8-flash']);
+    // Jamais de modèle « pro » ; les requêtes alternent entre les modèles Flash gratuits.
+    expect(appels).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash']);
+    expect(appels.some((m) => m.includes('pro'))).toBe(false);
     // Deux millions de tokens consommés, aucun coût.
     expect(ia.compteur.total).toBe(0);
     expect(ia.compteur.detail[0]!.tokensEntree).toBe(2_000_000);
@@ -55,12 +57,15 @@ describe('couche Gemini en mode gratuit', () => {
 
   it('espace les requêtes pour respecter la limite par minute', async () => {
     const ia = await iaGemini({ cle: 'k', plafondUsd: 100, gratuit: true });
+    // Deux modèles Flash : les deux premières requêtes partent tout de suite, chacune sur son modèle.
     await ia.json(demande('masse'));
+    await ia.json(demande('masse'));
+    expect(appels).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash']);
     let terminee = false;
     const suite = ia.json(demande('masse')).then(() => (terminee = true));
-    await vi.advanceTimersByTimeAsync(4_000);
+    await vi.advanceTimersByTimeAsync(3_000);
     expect(terminee).toBe(false);
-    await vi.advanceTimersByTimeAsync(5_000);
+    await vi.advanceTimersByTimeAsync(3_000);
     await suite;
     expect(terminee).toBe(true);
   });
@@ -84,13 +89,13 @@ describe('couche Gemini en mode gratuit', () => {
     const suite = ia.json(demande('masse'));
     await vi.advanceTimersByTimeAsync(10_000);
     expect(await suite).toEqual({ ok: true });
-    expect(appels).toEqual(['gemini-3.8-flash', 'gemini-3.8-flash-lite']);
+    expect(appels).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash']);
     expect(ia.requetes).toBe(2);
     // Les requêtes suivantes restent sur le modèle qui fonctionne.
     const suivante = ia.json(demande('masse'));
     await vi.advanceTimersByTimeAsync(10_000);
     await suivante;
-    expect(appels.at(-1)).toBe('gemini-3.8-flash-lite');
+    expect(appels.at(-1)).toBe('gemini-3.5-flash');
   });
 
   it("s'arrête quand tous les modèles gratuits ont atteint leur limite du jour", async () => {
@@ -103,7 +108,7 @@ describe('couche Gemini en mode gratuit', () => {
     const erreur = await echec;
     expect(erreur).toBeInstanceOf(QuotaAtteint);
     expect((erreur as { quotidien: boolean }).quotidien).toBe(true);
-    expect(appels).toEqual(['gemini-3.8-flash', 'gemini-3.8-flash-lite', 'gemini-3.5-flash']);
+    expect(appels).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.8-flash-lite']);
   });
 
   it('attend le délai indiqué sur une limite par minute, puis réussit', async () => {

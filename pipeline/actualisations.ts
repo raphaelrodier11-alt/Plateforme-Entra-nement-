@@ -8,7 +8,7 @@
  *    remplacé par une nouvelle version.
  */
 import type { Actualisation, Chapitre, Fichier } from '../shared/types';
-import { avecPages, iaRequise, notifier, tempsEcoule, texteDe, type Contexte, estArret } from './contexte';
+import { avecPages, CHAPITRES_EN_PARALLELE, enParallele, iaRequise, notifier, tempsEcoule, texteDe, type Contexte, estArret } from './contexte';
 import { aTraiter, idPrecedent } from './import';
 import { erreurPublique, journal } from './journal';
 import { SYSTEME, consigneActualisation } from './prompts';
@@ -85,8 +85,8 @@ function comparaisonsDuChapitre(c: Contexte, chapitre: Chapitre, actuel: { texte
 
 export async function comparer(c: Contexte): Promise<void> {
   const ia = iaRequise(c);
-  for (const chapitre of c.memoire.liste<Chapitre>('chapitres').filter((x) => x.aComparer)) {
-    if (tempsEcoule(c)) break;
+  await enParallele(c.memoire.liste<Chapitre>('chapitres').filter((x) => x.aComparer), CHAPITRES_EN_PARALLELE, async (chapitre) => {
+    if (tempsEcoule(c)) return;
 
     const fichiersCours = chapitre.fichierIds
       .map((id) => c.memoire.lire<Fichier>('fichiers', id))
@@ -95,9 +95,9 @@ export async function comparer(c: Contexte): Promise<void> {
       .map((f) => texteComplet(c, f.id, f.nom))
       .filter((t): t is { texte: string; version: string } => !!t);
     // Le cours actuel n'est pas encore entièrement lu : on y reviendra.
-    if (actuel.length === 0 || actuel.length < fichiersCours.length) continue;
+    if (actuel.length === 0 || actuel.length < fichiersCours.length) return;
     // Si le chapitre doit encore être régénéré à partir d'une nouvelle version, on attend.
-    if (fichiersCours.some((f) => f.etat !== 'a_jour' && aTraiter(f))) continue;
+    if (fichiersCours.some((f) => f.etat !== 'a_jour' && aTraiter(f))) return;
 
     try {
       const comparaisons = comparaisonsDuChapitre(c, chapitre, actuel, fichiersCours.map((f) => f.id));
@@ -157,5 +157,5 @@ export async function comparer(c: Contexte): Promise<void> {
       if (estArret(erreur)) throw erreur;
       journal(`Comparaison en échec : ${erreurPublique(erreur)}`);
     }
-  }
+  });
 }
