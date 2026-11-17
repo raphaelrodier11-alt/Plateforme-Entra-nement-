@@ -77,3 +77,18 @@ describe('rangement par matière pendant l’import', () => {
     expect(fichiers.find((x) => x.chemin.includes('Hérédité'))?.matiereId).toBe(idDe('Génétique'));
   });
 });
+
+describe('Gemini surchargé', () => {
+  it('met le traitement en pause au lieu de faire échouer le passage', async () => {
+    await stockage.deposer({ id: 'depot-cours-0001', nom: 'Hépatites.pdf', chemin: 'SEMESTRE 1/INFECTIO/Hépatites.pdf', role: 'cours', contenu: [PAGE(1), PAGE(2)].join('\f'), modifieLe: '2026-11-16T07:00:00.000Z' });
+    await executer({ stockage, creerDrive: () => { throw new Error('pas de drive'); }, creerIa: async (o) => new IaTest(o.plafondUsd), lire: lireTest, mode: 'auto', budgetMinutes: 10, maintenant });
+    await stockage.ecrire('taches', [{ id: 't', type: 'generation_complete', statut: 'en_attente', creeLe: maintenant, majLe: maintenant } satisfies Tache]);
+    maintenant += 3_600_000;
+    const surcharge = new IaTest(100);
+    surcharge.json = async () => {
+      throw Object.assign(new Error('overloaded'), { name: 'ApiError', status: 503 });
+    };
+    const issue = await executer({ stockage, creerDrive: () => { throw new Error('pas de drive'); }, creerIa: async () => surcharge, lire: lireTest, mode: 'auto', budgetMinutes: 10, maintenant });
+    expect(issue).toBe('quota');
+  });
+});

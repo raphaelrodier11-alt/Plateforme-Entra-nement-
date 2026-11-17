@@ -58,7 +58,8 @@ export class QuotaAtteint extends Error {
 
 /** Au-delà de cette taille, les pièces passent par l'API de fichiers. */
 const TAILLE_EN_LIGNE_MAX = 12_000_000;
-const ESSAIS = 4;
+/** Gemini renvoie parfois « surchargé » (503) : on patiente plus longtemps avant d'abandonner. */
+const ESSAIS = 6;
 /**
  * Écart entre deux requêtes en mode gratuit. On démarre vite (≈ 12 par minute) et
  * on ralentit tout seul dès que Google refuse pour cause de limite par minute ;
@@ -253,7 +254,7 @@ export async function iaGemini(options: {
             if (erreur instanceof SyntaxError) {
               rappel = '\n\nTa réponse précédente n’était pas un JSON valide. Réponds uniquement par le JSON demandé.';
             }
-            await new Promise((r) => setTimeout(r, 3000 * 2 ** (essai - 1)));
+            await new Promise((r) => setTimeout(r, Math.min(60_000, 5000 * 2 ** (essai - 1))));
           }
         }
       } finally {

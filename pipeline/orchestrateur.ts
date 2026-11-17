@@ -305,6 +305,7 @@ export async function executer(d: Dependances): Promise<Issue> {
 
     let arret: 'plafond' | 'quota' | undefined;
     let quotaDuJour = false;
+    let surcharge = false;
     try {
       await lireScans(contexte);
       await structurer(contexte);
@@ -323,8 +324,11 @@ export async function executer(d: Dependances): Promise<Issue> {
         });
       }
     } catch (erreur) {
-      if (!estArret(erreur)) throw erreur;
-      arret = (erreur as Error).name === 'QuotaAtteint' ? 'quota' : 'plafond';
+      // Gemini surchargé (erreur 5xx persistante) : simple pause, le prochain passage reprend.
+      const statut = (erreur as { status?: number }).status;
+      surcharge = !estArret(erreur) && statut !== undefined && statut >= 500;
+      if (!estArret(erreur) && !surcharge) throw erreur;
+      arret = surcharge || (erreur as Error).name === 'QuotaAtteint' ? 'quota' : 'plafond';
       quotaDuJour = (erreur as { quotidien?: boolean }).quotidien === true;
     } finally {
       // Jour du quota Gemini : minuit heure du Pacifique (≈ 9 h à Paris).
@@ -345,7 +349,9 @@ export async function executer(d: Dependances): Promise<Issue> {
       journal('Limite du palier gratuit atteinte : reprise au prochain passage');
       await majEtat({
         statut: 'en_cours',
-        message: quotaDuJour
+        message: surcharge
+          ? 'Gemini est momentanément surchargé : le traitement reprend tout seul au prochain passage. Rien n’est dépensé.'
+          : quotaDuJour
           ? 'Limite gratuite du jour de Gemini atteinte : le traitement reprend tout seul demain (vers 9 h, heure de Paris). Rien n’est dépensé.'
           : 'Limite gratuite de Gemini atteinte : le traitement reprend tout seul au prochain passage. Rien n’est dépensé.',
         ...compter(),
