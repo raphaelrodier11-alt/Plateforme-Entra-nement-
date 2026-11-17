@@ -23,6 +23,8 @@
   --color-accent-fond: rgb(57 135 229 / 0.16);
   --color-serie-2: #d95926;
   --color-serie-3: #199e70;
+  /* Vert « moniteur » de l'ECG (hors palette des graphiques). */
+  --color-ecg: #34e0a1;
 
   /* Couleurs d'état : toujours accompagnées d'une icône et d'un libellé. */
   --color-bon: #0ca30c;
@@ -57,6 +59,7 @@
   --color-accent-fond: rgb(36 102 200 / 0.1);
   --color-serie-2: #c24a1a;
   --color-serie-3: #0f8a5f;
+  --color-ecg: #0b9a68;
 
   --color-bon: #0b7d2a;
   --color-alerte: #a86a00;
@@ -137,6 +140,24 @@
 
 @utility chiffres {
   font-variant-numeric: tabular-nums;
+}
+
+/* Élément qui s'illumine à chaque battement du cœur (classe « bat » sur <html>). */
+@utility pouls {
+  transition:
+    box-shadow 0.75s ease-out,
+    border-color 0.75s ease-out,
+    filter 0.75s ease-out;
+}
+html.bat .pouls {
+  transition-duration: 0.09s;
+  border-color: color-mix(in oklab, var(--color-accent) 55%, transparent);
+  box-shadow:
+    var(--ombre-carte),
+    0 0 26px -4px color-mix(in oklab, var(--color-accent) 42%, transparent);
+}
+html.bat .pouls-logo {
+  filter: drop-shadow(0 0 7px color-mix(in oklab, var(--color-serie-3) 80%, transparent));
 }
 
 @keyframes apparition {

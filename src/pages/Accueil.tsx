@@ -23,6 +23,8 @@ import { useDonnees } from '../etat/donnees';
 import { Anneau, Tuile } from '../graphiques/Graphiques';
 import { LIBELLE_TACHE, lancerRevisionErreurs, lancerTache } from '../lib/actions';
 import { Docteur } from '../composants/Docteur';
+import { MoniteurEcg } from '../composants/Ecg';
+import { motDuJour, salutation } from '../../shared/motivation';
 import { Suggestions } from '../composants/Suggestions';
 import { chargerDemo } from '../demo/charger';
 
@@ -85,12 +87,23 @@ export function Accueil() {
 
   return (
     <div className="space-y-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-sm text-texte-2 first-letter:uppercase">{jourLisible(aujourdHui)}</p>
-          <h1 className="text-2xl font-semibold tracking-tight">Bonjour</h1>
+      <header className="carte pouls relative isolate overflow-hidden">
+        <div className="absolute inset-0 -z-10">
+          <MoniteurEcg />
         </div>
-        {d.aDesDonneesDemo && <Pastille ton="alerte">Données de démonstration</Pastille>}
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-surface/90 via-surface/45 to-transparent" aria-hidden />
+        <div className="flex min-h-44 flex-col justify-between gap-6 p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm text-texte-2 first-letter:uppercase">{jourLisible(aujourdHui)}</p>
+              <h1 className="text-3xl font-semibold tracking-tight">{salutation(new Date(d.maintenant))}</h1>
+            </div>
+            {d.aDesDonneesDemo && <Pastille ton="alerte">Données de démonstration</Pastille>}
+          </div>
+          <p className="max-w-lg text-base leading-snug text-texte" aria-label="Mot du jour">
+            « {motDuJour(new Date(d.maintenant))} »
+          </p>
+        </div>
       </header>
 
       {d.nbAValider + d.nbNotificationsNonLues > 0 && (
@@ -110,7 +123,7 @@ export function Accueil() {
 
       <Link
         to="/assistant"
-        className="carte carte-vive flex items-center gap-4 border-accent/30 bg-gradient-to-r from-accent-fond to-transparent p-4"
+        className="carte carte-vive pouls flex items-center gap-4 border-accent/30 bg-gradient-to-r from-accent-fond to-transparent p-4"
       >
         <Docteur taille={54} className="shrink-0" />
         <span className="min-w-0 flex-1">
@@ -126,7 +139,7 @@ export function Accueil() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Chiffre principal : avancement global */}
-        <section className="carte flex items-center gap-5 p-5 lg:col-span-2">
+        <section className="carte pouls flex items-center gap-5 p-5 lg:col-span-2">
           <Anneau valeur={avancement} taille={104} libelle="Avancement global">
             <BookOpen size={28} className="text-accent-clair" aria-hidden />
           </Anneau>

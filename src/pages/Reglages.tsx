@@ -6,6 +6,7 @@ import { Check, CloudOff, Download, HardDrive, Link2, Sparkles, Trash2, Unplug }
 import { useEffect, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useEtatSync } from '../App';
+import { animationsActives, reglerAnimations } from '../lib/animations';
 import { choisirTheme, lireTheme, type Theme } from '../lib/theme';
 import { CRENEAUX, type Creneau, type Reglages as TypeReglages } from '../../shared/types';
 import { Bouton, Carte, Pastille, Puce, STYLE_CHAMP, TitrePage } from '../composants/ui';
@@ -473,6 +474,7 @@ function SectionDonnees() {
 
 function SectionApparence() {
   const [theme, setTheme] = useState<Theme>(lireTheme);
+  const [animees, setAnimees] = useState(animationsActives);
   const choix: { valeur: Theme; libelle: string }[] = [
     { valeur: 'sombre', libelle: 'Sombre' },
     { valeur: 'clair', libelle: 'Clair' },
@@ -497,6 +499,24 @@ function SectionApparence() {
           </Puce>
         ))}
       </div>
+      <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm">
+        <input
+          type="checkbox"
+          checked={animees}
+          onChange={(e) => {
+            setAnimees(e.target.checked);
+            reglerAnimations(e.target.checked);
+          }}
+          className="mt-0.5 size-5 shrink-0 accent-[#3987e5]"
+        />
+        <span>
+          <span className="font-medium">Animation du cœur (ECG)</span>
+          <span className="block text-texte-2">
+            Tracé et lueurs à chaque battement. Décoche pour économiser la batterie ; c'est automatique si ton appareil
+            demande de réduire les animations.
+          </span>
+        </span>
+      </label>
     </Carte>
   );
 }

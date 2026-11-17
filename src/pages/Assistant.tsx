@@ -59,7 +59,7 @@ export function Assistant() {
       <TitrePage
         titre="Dr Rodier"
         sousTitre="Pose tes questions, demande un document : tout est enregistré."
-        action={<Docteur taille={52} />}
+        action={<Docteur taille={52} className="pouls-logo pouls" />}
       />
       {disponible === false && (
         <div role="alert" className="carte mb-4 flex gap-3 border-alerte/40 p-4 text-sm">

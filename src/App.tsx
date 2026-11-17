@@ -4,6 +4,7 @@
  */
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Route, Routes } from 'react-router-dom';
+import { FondEcg } from './composants/Ecg';
 import { Navigation } from './composants/Navigation';
 import {
   abonnerEtatSync,
@@ -119,7 +120,8 @@ export function App() {
   return (
     <FournisseurDonnees>
       <SynchroCalendrier />
-      <div className="mx-auto flex min-h-dvh max-w-[1400px]">
+      <FondEcg />
+      <div className="relative z-10 mx-auto flex min-h-dvh max-w-[1400px]">
         <Navigation />
         <main className="min-w-0 flex-1 px-4 pt-5 pb-28 sm:px-6 lg:px-8 lg:pb-10">
           <Routes>

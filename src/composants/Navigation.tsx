@@ -99,7 +99,7 @@ export function Navigation() {
       {/* Ordinateur : barre latérale */}
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-bord px-3 py-5 lg:flex">
         <div className="mb-6 flex items-center gap-2.5 px-2">
-          <Docteur taille={38} />
+          <Docteur taille={38} className="pouls-logo pouls" />
           <span className="text-lg font-semibold tracking-tight">Dr Rodier</span>
         </div>
         <nav aria-label="Navigation principale" className="flex flex-1 flex-col gap-1">
