@@ -13,6 +13,7 @@ import {
   FilePen,
   GraduationCap,
   House,
+  MessageCircleHeart,
   ListChecks,
   RefreshCw,
   Settings,
@@ -71,6 +72,7 @@ export function Navigation() {
   const entrees: Entree[] = [
     { vers: '/', libelle: 'Accueil', icone: House },
     { vers: '/cours', libelle: 'Cours', icone: BookOpen },
+    { vers: '/assistant', libelle: 'Dr Rodier', icone: MessageCircleHeart },
     { vers: '/qcm', libelle: 'QCM', icone: ListChecks },
     { vers: '/erreurs', libelle: 'Erreurs', icone: CircleAlert, compte: erreursDues.length },
     { vers: '/planning', libelle: 'Planning', icone: CalendarDays },
@@ -85,8 +87,10 @@ export function Navigation() {
     },
     { vers: '/reglages', libelle: 'Réglages', icone: Settings },
   ];
-  const principales = entrees.slice(0, 5);
-  const secondaires = entrees.slice(5);
+  // En bas de l'écran : l'essentiel, dont l'assistant ; le reste est sous « Plus ».
+  const ordrePrincipal = ['/', '/cours', '/assistant', '/qcm', '/erreurs'];
+  const principales = ordrePrincipal.map((v) => entrees.find((e) => e.vers === v)!);
+  const secondaires = entrees.filter((e) => !ordrePrincipal.includes(e.vers));
   const compteSecondaire = secondaires.reduce((s, e) => s + (e.compte ?? 0), 0);
 
   return (

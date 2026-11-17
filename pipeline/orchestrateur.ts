@@ -28,6 +28,7 @@ import { ECHECS_MAX, estArret, notifier, type Contexte } from './contexte';
 import { idDossier, type Drive } from './drive';
 import { comparer, finaliserAnciens } from './actualisations';
 import { DOSSIER_DEPOT, driveComposite, driveDepot, estFichierDepot, idFichierDepot } from './depot';
+import { demandesATraiter, traiterDemandes } from './documents';
 import { ajouterQuestions, genererChapitres, traiterAnnales, verifierChapitres } from './generation';
 import type { Ia } from './ia';
 import { aTraiter, estimer, lireFichiers, lireScans, scanner, structurer } from './import';
@@ -79,7 +80,7 @@ const NOMS_PAR_DEFAUT: Record<Niveau, string> = {
 export async function executer(d: Dependances): Promise<Issue> {
   const maintenant = d.maintenant ?? Date.now();
   const memoire = new Memoire(d.stockage);
-  await memoire.charger('reglages', 'etat', 'taches', 'fichiers', 'depots', 'chapitres', 'estimations', 'notifications');
+  await memoire.charger('reglages', 'etat', 'taches', 'fichiers', 'depots', 'chapitres', 'estimations', 'notifications', 'demandes');
 
   const reglages = memoire.lire<Reglages>('reglages', 'principal');
   const lireEtat = (): EtatPipeline =>
@@ -107,6 +108,25 @@ export async function executer(d: Dependances): Promise<Issue> {
   const fichiersDepot = (): Fichier[] =>
     memoire.liste<Fichier>('fichiers').filter((f) => estFichierDepot(f.id) && f.etat !== 'supprime');
   const avecDepot = depotsActuels().length > 0 || fichiersDepot().length > 0;
+
+  // Documents demandés dans l'app : traités en premier, indépendamment de l'import.
+  if (d.creerIa && demandesATraiter(memoire, maintenant).length > 0) {
+    await memoire.charger('matieres', 'documents');
+    try {
+      const iaDocuments = await d.creerIa({
+        modeleMasse: reglages?.modeleMasse,
+        modeleExpert: reglages?.modeleExpert,
+        tarifs: reglages?.tarifs,
+        plafondUsd: gratuit ? Number.MAX_SAFE_INTEGER : (reglages?.plafondMensuelUsd ?? PLAFOND_MINIMAL_USD),
+        gratuit,
+      });
+      const n = await traiterDemandes(memoire, iaDocuments, maintenant);
+      journal(`Documents demandés : ${n} rédigé${n > 1 ? 's' : ''}`);
+    } catch (erreur) {
+      if (!estArret(erreur)) journal(`Documents demandés : ${erreurPublique(erreur)}`);
+      else journal('Documents demandés : limite atteinte, reprise au prochain passage');
+    }
+  }
 
   if (!avecDrive && !avecDepot) {
     const sansConnexion = driveConfigure;
