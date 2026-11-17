@@ -21,6 +21,7 @@ import {
   ECHECS_MAX,
   avecPages,
   enLots,
+  enParallele,
   iaRequise,
   notifier,
   tempsEcoule,
@@ -45,6 +46,9 @@ import {
 import { MARQUEUR_ILLISIBLE, empreinte, slug, validerLecture } from './validation';
 
 const PAGES_PAR_LECTURE = 20;
+/** Lectures de scans menées en même temps : fichiers, et groupes de pages d'un même fichier. */
+const FICHIERS_SCANS_EN_PARALLELE = 3;
+const GROUPES_SCANS_EN_PARALLELE = 3;
 const FICHIERS_PAR_CLASSEMENT = 120;
 const JOURS_BADGE_NOUVEAU = 14;
 
@@ -407,15 +411,19 @@ export function estimer(
 
 export async function lireScans(c: Contexte): Promise<void> {
   const ia = iaRequise(c);
-  for (const fichier of c.memoire.liste<Fichier>('fichiers').filter(aTraiter)) {
-    if (tempsEcoule(c)) break;
+  // Les lectures de scans sont lentes (le PDF est envoyé en entier à chaque groupe de pages) :
+  // on en mène plusieurs à la fois, fichiers et groupes de pages confondus. L'IA répartit les
+  // requêtes entre les modèles gratuits et respecte leur cadence.
+  const aLire = c.memoire.liste<Fichier>('fichiers').filter(aTraiter);
+  await enParallele(aLire, FICHIERS_SCANS_EN_PARALLELE, async (fichier) => {
+    if (tempsEcoule(c)) return;
     const texte = texteDe(c, fichier.id);
-    if (!texte || texte.pagesAOcr.length === 0) continue;
+    if (!texte || texte.pagesAOcr.length === 0) return;
 
     try {
       const { octets, mimeType } = await c.drive.telecharger({ ...fichier });
       const piece = (await c.lire(octets, mimeType))?.piece;
-      if (!piece) continue;
+      if (!piece) return;
 
       const pages = new Map(texte.pages.map((p) => [p.n, p]));
       const illisibles: PassageIllisible[] = [];
@@ -429,7 +437,12 @@ export async function lireScans(c: Contexte): Promise<void> {
           creeLe: c.maintenant,
         });
 
-      for (const lot of enLots(texte.pagesAOcr, PAGES_PAR_LECTURE)) {
+      let interrompu = false;
+      await enParallele(enLots(texte.pagesAOcr, PAGES_PAR_LECTURE), GROUPES_SCANS_EN_PARALLELE, async (lot) => {
+        if (interrompu || tempsEcoule(c)) {
+          interrompu = true;
+          return;
+        }
         const lues = validerLecture(
           await ia.json({
             niveau: 'masse',
@@ -455,7 +468,9 @@ export async function lireScans(c: Contexte): Promise<void> {
           const doute = texteSuspect(lue.texte);
           if (doute) signaler(n, `Lecture douteuse : ${doute}.`);
         }
-      }
+      });
+      // Temps écoulé avant la fin : rien n'est enregistré, le fichier sera relu au prochain passage.
+      if (interrompu) return;
 
       const anciens = c.memoire
         .liste<PassageIllisible>('illisibles')
@@ -478,7 +493,7 @@ export async function lireScans(c: Contexte): Promise<void> {
       journal(`Lecture d'un scan impossible : ${erreurPublique(erreur)}`);
       await c.memoire.ecrire<Fichier>('fichiers', { ...fichier, echecs: (fichier.echecs ?? 0) + 1 });
     }
-  }
+  });
 }
 
 // ---------------------------------------------------------------------------
