@@ -70,22 +70,37 @@ function CarteEstimation({ estimation }: { estimation: Estimation }) {
         </span>
       }
     >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <p className="text-xs text-muet">Génération complète (une seule fois)</p>
-          <p className="text-4xl font-semibold tracking-tight">
-            {euros(estimation.totalUsd, estimation.tauxEurParUsd)}
+      {estimation.gratuit ? (
+        <div className="rounded-xl border border-bon/40 bg-bon/10 p-4">
+          <p className="text-4xl font-semibold tracking-tight">0,00 €</p>
+          <p className="mt-1 text-sm">
+            Palier gratuit de Gemini : aucune dépense n'est possible. Si la limite de Google est atteinte, le
+            traitement s'arrête et reprend tout seul plus tard.
           </p>
-          <p className="chiffres text-xs text-muet">{nombre(estimation.totalUsd, 2)} $</p>
+          {estimation.equivalentUsd !== undefined && (
+            <p className="chiffres mt-1 text-xs text-texte-2">
+              Valeur au tarif payant, non facturée : environ {nombre(estimation.equivalentUsd, 2)} $.
+            </p>
+          )}
         </div>
-        <div>
-          <p className="text-xs text-muet">Ensuite, chaque mois (estimation)</p>
-          <p className="text-4xl font-semibold tracking-tight">
-            {euros(estimation.mensuelUsd, estimation.tauxEurParUsd)}
-          </p>
-          <p className="chiffres text-xs text-muet">{nombre(estimation.mensuelUsd, 2)} $</p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <p className="text-xs text-muet">Génération complète (une seule fois)</p>
+            <p className="text-4xl font-semibold tracking-tight">
+              {euros(estimation.totalUsd, estimation.tauxEurParUsd)}
+            </p>
+            <p className="chiffres text-xs text-muet">{nombre(estimation.totalUsd, 2)} $</p>
+          </div>
+          <div>
+            <p className="text-xs text-muet">Ensuite, chaque mois (estimation)</p>
+            <p className="text-4xl font-semibold tracking-tight">
+              {euros(estimation.mensuelUsd, estimation.tauxEurParUsd)}
+            </p>
+            <p className="chiffres text-xs text-muet">{nombre(estimation.mensuelUsd, 2)} $</p>
+          </div>
         </div>
-      </div>
+      )}
 
       <h3 className="mt-5 mb-2 text-xs font-semibold tracking-wide text-muet uppercase">Détail par étape</h3>
       <ul className="divide-y divide-grille text-sm">
@@ -98,7 +113,7 @@ function CarteEstimation({ estimation }: { estimation: Estimation }) {
                 {nombre(l.tokensSortie)} écrits
               </span>
             </span>
-            <span className="chiffres font-medium">{nombre(l.coutUsd, 2)} $</span>
+            <span className="chiffres font-medium">{estimation.gratuit ? 'gratuit' : `${nombre(l.coutUsd, 2)} $`}</span>
           </li>
         ))}
       </ul>

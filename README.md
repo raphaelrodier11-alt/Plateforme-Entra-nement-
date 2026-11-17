@@ -161,44 +161,55 @@ Les fichiers sont gardés dans la base Cloudflare (jamais dans le dépôt GitHub
 traitement démarre au passage suivant du pipeline, toutes les heures au plus ; passe
 ensuite à l'étape 5 (clé Gemini) et au premier import.
 
-### 3 bis. Google Drive (facultatif, lecture seule)
+### 3 bis. Google Drive (facultatif, gratuit, lecture seule)
 
-Utile pour surveiller automatiquement les mises à jour d'un drive partagé. Si tu
-n'en as pas besoin, saute cette étape.
+Utile pour surveiller automatiquement les mises à jour d'un drive partagé. Si tu n'en as
+pas besoin, saute cette étape. **C'est gratuit** : créer un projet Google Cloud et activer
+l'API Drive ne demande aucune carte bancaire (ne clique jamais sur « Activer la
+facturation » ni sur un essai gratuit). L'app se connecte avec ton compte Google et ne
+demande que la permission `drive.readonly` : elle ne peut rien modifier ni supprimer.
 
-L'app se connecte avec ton compte Google et ne demande que la permission
-`drive.readonly` : elle ne peut rien modifier ni supprimer.
-
-1. Ouvre <https://console.cloud.google.com>, crée un projet (par exemple « Dr Rodier »).
+1. Ouvre <https://console.cloud.google.com> avec ton compte Gmail, crée un projet
+   (« Dr Rodier »). Si Google propose un essai gratuit ou la facturation, ignore-le.
 2. **API et services → Bibliothèque** : cherche « Google Drive API » → **Activer**.
-3. **API et services → Écran de consentement OAuth** : type **Externe**, nom de
-   l'application, ton adresse e-mail. Ajoute le champ d'application
-   `…/auth/drive.readonly`. Ajoute-toi comme utilisateur de test.
-4. Toujours sur l'écran de consentement : **Publier l'application** (statut « En
-   production »). Sans cela, l'autorisation expire au bout de 7 jours. Aucune
-   validation par Google n'est nécessaire pour un usage personnel : un écran
-   « application non validée » s'affichera à la connexion ; choisis « Paramètres
-   avancés », puis « Accéder à Dr Rodier ».
-5. **API et services → Identifiants → Créer des identifiants → ID client OAuth** :
-   type **Application Web**. Dans « URI de redirection autorisés », colle l'adresse
-   affichée dans l'app (**Réglages → Google Drive → Adresse de redirection**), de la
-   forme `https://…workers.dev/api/drive/retour`.
-6. Dans GitHub, crée les secrets `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET` avec
-   les deux valeurs obtenues, puis relance **Actions → Déploiement**.
-7. Dans l'app, **Réglages → Google Drive** : colle le lien du dossier de cours et
-   celui du dossier d'annales, enregistre, puis **Connecter mon compte Google**.
+3. **API et services → Écran de consentement OAuth** (ou « Google Auth Platform ») :
+   type **Externe**, nom `Dr Rodier`, ton adresse e-mail. Ajoute la portée
+   `…/auth/drive.readonly`. Ajoute ton adresse Gmail comme utilisateur test.
+4. **Publier l'application** (statut « En production »). Sans cela, l'autorisation
+   expire au bout de 7 jours. Aucune validation par Google n'est nécessaire pour un
+   usage personnel : à la connexion, un écran « application non validée » s'affichera ;
+   choisis « Paramètres avancés », puis « Accéder à Dr Rodier ».
+5. **Identifiants → Créer des identifiants → ID client OAuth** : type **Application
+   Web**. Dans « URI de redirection autorisés », colle l'adresse affichée dans l'app
+   (**Réglages → Google Drive → Adresse de redirection**), de la forme
+   `https://…workers.dev/api/drive/retour`.
+6. Dans GitHub, crée les secrets `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET` avec les
+   deux valeurs obtenues, puis relance **Actions → Déploiement → Run workflow**.
+7. Dans l'app, **Réglages → Google Drive** : colle le lien du dossier de cours, celui du
+   dossier d'annales et, facultatif, celui du dossier des anciennes versions (comparées
+   aux cours actuels). Enregistre, puis touche **Connecter mon compte Google**.
 
-Le jeton Google est conservé chiffré dans la base. Si le jeton d'API Cloudflare est
-remplacé un jour, il faudra reconnecter Google (la clé de chiffrement en dépend).
+Le Drive et les fichiers envoyés depuis l'app (page Fichiers) peuvent s'utiliser
+ensemble. Le jeton Google est conservé chiffré dans la base. Si le jeton d'API Cloudflare
+est remplacé un jour, il faudra reconnecter Google (la clé de chiffrement en dépend).
 
-### 4. Gemini (intelligence artificielle)
+### 4. Gemini (intelligence artificielle), gratuit
 
-1. Crée une clé sur <https://aistudio.google.com/apikey>.
-2. Dans GitHub, crée le secret `GEMINI_API_KEY`.
+1. Ouvre <https://aistudio.google.com/apikey> et crée une clé (**Create API key**).
+2. Dans GitHub, crée le secret `GEMINI_API_KEY` avec cette clé.
 
-D'après les conditions de Google, les contenus envoyés avec le palier gratuit
-peuvent servir à améliorer ses produits, ce qui n'est pas le cas quand la
-facturation est activée. Vérifie les conditions en vigueur avant de choisir.
+**Rien n'est facturé tant que tu n'actives pas la facturation.** Une clé créée dans
+Google AI Studio sans carte bancaire relève du palier gratuit : si la limite est dépassée,
+Google refuse les requêtes, il ne facture pas. Ne renseigne jamais de moyen de paiement
+sur ce projet. Dr Rodier est en **mode gratuit** par défaut (Réglages → Intelligence
+artificielle) : il n'utilise que le modèle gratuit, espace ses requêtes et s'arrête
+tout seul quand la limite du jour est atteinte, puis reprend le lendemain.
+
+Conséquences : un gros volume de cours se traite en plusieurs heures, voire quelques
+jours ; et la détection d'erreurs utilise le même modèle que le reste, pas le modèle le
+plus puissant (réservé au mode payant). D'après les conditions de Google, les contenus
+envoyés avec le palier gratuit peuvent servir à améliorer ses produits : à garder en tête
+pour des documents qui ne sont pas les tiens.
 
 ### 5. Premier import
 
@@ -244,22 +255,17 @@ n'est pas reproposée.
 
 ## Coûts
 
-**Hébergement : 0 €.** Offre gratuite de Cloudflare (Worker et base D1) et GitHub
-Actions, gratuit sur un dépôt public.
+**Tout est gratuit par défaut** : Cloudflare (Worker et base D1), GitHub Actions (dépôt
+public), Google Drive (lecture) et Gemini (palier gratuit, mode gratuit). Dr Rodier ne
+peut rien dépenser en mode gratuit : l'estimation affiche 0 €, avec la valeur qu'aurait
+la génération au tarif payant, à titre indicatif seulement.
 
-**IA : selon tes fichiers.** L'estimation affichée dans l'app est calculée sur tes
-fichiers réels, étape par étape, avec le coût unique de la génération complète et
-une estimation mensuelle. Points à connaître :
-
-- Le pipeline choisit à chaque passage le modèle Gemini « Flash » stable le plus
-  récent pour la masse, et le modèle « Pro » pour les corrections. Tu peux imposer un
-  modèle dans **Réglages → Intelligence artificielle**.
-- Les tarifs par défaut (`pipeline/tarifs.ts`) sont des ordres de grandeur prudents,
-  marqués « à vérifier » dans l'estimation. Pour une estimation exacte, recopie dans
-  les réglages ceux de <https://ai.google.dev/gemini-api/docs/pricing>.
-- **Plafond de dépense** : par défaut deux fois l'estimation approuvée (3 $ au
-  minimum) par mois. Au-delà, la génération se met en pause et l'app te prévient.
-  Réglable dans les réglages.
+Si un jour tu veux un traitement plus rapide ou le modèle le plus puissant, tu peux
+décocher le mode gratuit (Réglages → Intelligence artificielle) et activer la facturation
+chez Google. Dans ce cas seulement : l'estimation affiche un coût réel, un **plafond de
+dépense** (deux fois l'estimation approuvée, 3 $ au minimum, réglable) met la génération
+en pause en cas de dépassement, et les tarifs par défaut (`pipeline/tarifs.ts`) sont des
+ordres de grandeur à vérifier sur <https://ai.google.dev/gemini-api/docs/pricing>.
 
 ## Synchronisation du calendrier iCloud
 

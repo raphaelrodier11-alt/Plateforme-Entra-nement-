@@ -45,9 +45,19 @@ export class PlafondAtteint extends Error {
   }
 }
 
+/** La limite du palier gratuit (ou un quota) est atteinte : le travail reprendra plus tard. */
+export class QuotaAtteint extends Error {
+  constructor() {
+    super('Limite de requêtes atteinte');
+    this.name = 'QuotaAtteint';
+  }
+}
+
 /** Au-delà de cette taille, les pièces passent par l'API de fichiers. */
 const TAILLE_EN_LIGNE_MAX = 12_000_000;
 const ESSAIS = 4;
+/** Écart minimal entre deux requêtes en mode gratuit (≈ 7 requêtes par minute). */
+const ECART_GRATUIT_MS = 8500;
 
 /**
  * Choisit un modèle dans la liste publiée : la version stable la plus
@@ -90,27 +100,36 @@ export async function iaGemini(options: {
   tarifs?: TarifModele[];
   /** Dépense maximale autorisée pour ce passage, en dollars. */
   plafondUsd: number;
+  /** Palier gratuit : un seul modèle, aucun coût, rythme limité. */
+  gratuit?: boolean;
 }): Promise<Ia> {
+  const gratuit = options.gratuit === true;
   const client = new GoogleGenAI({ apiKey: options.cle });
 
   const noms: string[] = [];
   for await (const modele of await client.models.list()) {
     if (modele.name && (modele.supportedActions ?? []).includes('generateContent')) noms.push(modele.name);
   }
+  const masse = options.modeleMasse || choisirModele(noms, 'flash') || '';
+  // Les modèles « Pro » ne sont pas gratuits : en mode gratuit, un seul modèle sert à tout.
   const modeles: Record<Niveau, string> = {
-    masse: options.modeleMasse || choisirModele(noms, 'flash') || '',
-    expert: options.modeleExpert || choisirModele(noms, 'pro') || '',
+    masse,
+    expert: gratuit ? masse : options.modeleExpert || choisirModele(noms, 'pro') || '',
   };
   for (const niveau of ['masse', 'expert'] as const) {
     if (!modeles[niveau]) throw new Error(`Aucun modèle Gemini disponible pour le niveau « ${niveau} »`);
   }
-  journal(`Modèles : masse = ${modeles.masse}, expert = ${modeles.expert}`);
+  journal(`Modèles : masse = ${modeles.masse}, expert = ${modeles.expert}${gratuit ? ' (mode gratuit)' : ''}`);
 
-  const tarifs: Record<Niveau, TarifModele> = {
-    masse: tarifPour(modeles.masse, 'masse', options.tarifs),
-    expert: tarifPour(modeles.expert, 'expert', options.tarifs),
-  };
+  const sansCout = (modele: string): TarifModele => ({ modele, entreeUsdParM: 0, sortieUsdParM: 0, aVerifier: false });
+  const tarifs: Record<Niveau, TarifModele> = gratuit
+    ? { masse: sansCout(modeles.masse), expert: sansCout(modeles.expert) }
+    : {
+        masse: tarifPour(modeles.masse, 'masse', options.tarifs),
+        expert: tarifPour(modeles.expert, 'expert', options.tarifs),
+      };
   const compteur = new Compteur();
+  let dernierAppel = 0;
 
   const enParties = async (pieces: Piece[]): Promise<{ parties: Part[]; aSupprimer: string[] }> => {
     const parties: Part[] = [];
@@ -136,6 +155,12 @@ export async function iaGemini(options: {
     compteur,
     async json(demande) {
       if (compteur.total >= options.plafondUsd) throw new PlafondAtteint(compteur.total);
+      if (gratuit) {
+        // Le palier gratuit limite le nombre de requêtes par minute.
+        const attente = dernierAppel + ECART_GRATUIT_MS - Date.now();
+        if (attente > 0) await new Promise((r) => setTimeout(r, attente));
+        dernierAppel = Date.now();
+      }
       const { parties, aSupprimer } = await enParties(demande.pieces ?? []);
       try {
         let rappel = '';
@@ -165,7 +190,11 @@ export async function iaGemini(options: {
             const statut = (erreur as { status?: number }).status;
             const reessayable =
               erreur instanceof SyntaxError || statut === 429 || (statut !== undefined && statut >= 500);
-            if (!reessayable || essai >= ESSAIS) throw erreur;
+            if (!reessayable || essai >= ESSAIS) {
+              // 429 : limite de requêtes ou quota du jour atteint.
+              if (statut === 429) throw new QuotaAtteint();
+              throw erreur;
+            }
             if (erreur instanceof SyntaxError) {
               rappel = '\n\nTa réponse précédente n’était pas un JSON valide. Réponds uniquement par le JSON demandé.';
             }

@@ -56,3 +56,13 @@ export function enLots<T>(elements: T[], taille: number): T[][] {
   for (let i = 0; i < elements.length; i += taille) lots.push(elements.slice(i, i + taille));
   return lots;
 }
+
+/**
+ * Erreur qui arrête le passage en cours sans le rendre « en erreur » : le
+ * plafond de dépense ou la limite du palier gratuit est atteint, le travail
+ * reprendra au passage suivant.
+ */
+export function estArret(erreur: unknown): boolean {
+  const nom = (erreur as Error | undefined)?.name;
+  return nom === 'PlafondAtteint' || nom === 'QuotaAtteint';
+}

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DocSync } from '../shared/collections';
 import type { Anomalie, Chapitre, Fichier, Question } from '../shared/types';
 import app from '../worker/index';
@@ -455,5 +455,103 @@ describe('dépôt : chemins, anciennes versions et gros volumes', () => {
       if (!page.encore) break;
     }
     expect(ids).toEqual(['t0', 't1', 't2', 't3', 't4']);
+  });
+});
+
+describe('connexion à Google Drive (lecture seule)', () => {
+  const appelsGoogle: { url: string; corps: string }[] = [];
+
+  beforeEach(() => {
+    env = { ...env, GOOGLE_CLIENT_ID: 'id-client-test', GOOGLE_CLIENT_SECRET: 'secret-client-test' };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (entree: string | URL | Request, init?: RequestInit) => {
+        const url = typeof entree === 'string' ? entree : entree instanceof URL ? entree.href : entree.url;
+        const corps = init?.body instanceof URLSearchParams ? init.body.toString() : String(init?.body ?? '');
+        appelsGoogle.push({ url, corps });
+        if (url.startsWith('https://oauth2.googleapis.com/token')) {
+          const params = new URLSearchParams(corps);
+          if (params.get('grant_type') === 'authorization_code') {
+            return Response.json(params.get('code') === 'bon-code' ? { refresh_token: 'refresh-secret-123', access_token: 'a' } : { error: 'invalid_grant' }, { status: params.get('code') === 'bon-code' ? 200 : 400 });
+          }
+          return Response.json({ access_token: 'acces-court', expires_in: 3599 });
+        }
+        return new Response('{}', { status: 200 });
+      }),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    appelsGoogle.length = 0;
+  });
+
+  const commencer = async () => {
+    const { url } = (await (await appel('/api/drive/connexion', { method: 'POST' }, CLE_APP)).json()) as { url: string };
+    return new URL(url);
+  };
+
+  it('n\'est pas connectable tant que les identifiants Google ne sont pas configurés', async () => {
+    env = { ...env, GOOGLE_CLIENT_ID: undefined, GOOGLE_CLIENT_SECRET: undefined };
+    expect(await (await appel('/api/drive/statut', {}, CLE_APP)).json()).toMatchObject({ configurable: false, connecte: false });
+    expect((await appel('/api/drive/connexion', { method: 'POST' }, CLE_APP)).status).toBe(400);
+  });
+
+  it('demande uniquement la lecture seule et annonce la bonne adresse de retour', async () => {
+    const url = await commencer();
+    expect(url.origin + url.pathname).toBe('https://accounts.google.com/o/oauth2/v2/auth');
+    expect(url.searchParams.get('scope')).toBe('https://www.googleapis.com/auth/drive.readonly');
+    expect(url.searchParams.get('client_id')).toBe('id-client-test');
+    expect(url.searchParams.get('access_type')).toBe('offline');
+    expect(url.searchParams.get('redirect_uri')).toBe('http://localhost/api/drive/retour');
+    const statut = (await (await appel('/api/drive/statut', {}, CLE_APP)).json()) as { urlRetour: string };
+    expect(statut.urlRetour).toBe('http://localhost/api/drive/retour');
+  });
+
+  it('termine la connexion, garde le jeton chiffré et le met à la disposition du pipeline seul', async () => {
+    const etat = (await commencer()).searchParams.get('state')!;
+    const retour = await app.request(`/api/drive/retour?code=bon-code&state=${etat}`, {}, env);
+    expect(retour.status).toBe(302);
+    expect(retour.headers.get('Location')).toBe('/reglages?drive=ok');
+    expect(await (await appel('/api/drive/statut', {}, CLE_APP)).json()).toMatchObject({ connecte: true });
+
+    // Le jeton n'est jamais stocké en clair.
+    const stocke = await env.DB.prepare("SELECT valeur FROM meta WHERE cle = 'drive_jeton'").first<{ valeur: string }>();
+    expect(stocke!.valeur).not.toContain('refresh-secret-123');
+    expect(stocke!.valeur).toMatch(/^[A-Za-z0-9+/=]+\.[A-Za-z0-9+/=]+$/);
+
+    // Le pipeline obtient un jeton de courte durée ; l'app, jamais.
+    const jeton = await appel('/api/admin/drive/jeton', { method: 'POST' }, CLE_PIPELINE);
+    expect(await jeton.json()).toMatchObject({ access_token: 'acces-court' });
+    const echange = appelsGoogle.find((a) => a.corps.includes('grant_type=refresh_token'))!;
+    expect(new URLSearchParams(echange.corps).get('refresh_token')).toBe('refresh-secret-123');
+    expect((await appel('/api/admin/drive/jeton', { method: 'POST' }, CLE_APP)).status).toBe(403);
+  });
+
+  it('refuse un retour dont le paramètre de contrôle est faux, expiré ou déjà utilisé', async () => {
+    await commencer();
+    const faux = await app.request('/api/drive/retour?code=bon-code&state=pirate', {}, env);
+    expect(faux.headers.get('Location')).toBe('/reglages?drive=erreur');
+    // Le vrai paramètre a été consommé par la tentative : il ne peut plus servir.
+    const etat = (await commencer()).searchParams.get('state')!;
+    expect((await app.request(`/api/drive/retour?code=bon-code&state=${etat}`, {}, env)).headers.get('Location')).toBe('/reglages?drive=ok');
+    expect((await app.request(`/api/drive/retour?code=bon-code&state=${etat}`, {}, env)).headers.get('Location')).toBe('/reglages?drive=erreur');
+    expect((await app.request('/api/drive/retour', {}, env)).headers.get('Location')).toBe('/reglages?drive=erreur');
+  });
+
+  it('échoue proprement quand Google refuse le code', async () => {
+    const etat = (await commencer()).searchParams.get('state')!;
+    const retour = await app.request(`/api/drive/retour?code=mauvais&state=${etat}`, {}, env);
+    expect(retour.headers.get('Location')).toBe('/reglages?drive=erreur');
+    expect(await (await appel('/api/drive/statut', {}, CLE_APP)).json()).toMatchObject({ connecte: false });
+  });
+
+  it('la déconnexion révoque et efface le jeton', async () => {
+    const etat = (await commencer()).searchParams.get('state')!;
+    await app.request(`/api/drive/retour?code=bon-code&state=${etat}`, {}, env);
+    await appel('/api/drive/deconnexion', { method: 'POST' }, CLE_APP);
+    expect(await (await appel('/api/drive/statut', {}, CLE_APP)).json()).toMatchObject({ connecte: false });
+    expect(appelsGoogle.some((a) => a.url.startsWith('https://oauth2.googleapis.com/revoke'))).toBe(true);
+    expect((await appel('/api/admin/drive/jeton', { method: 'POST' }, CLE_PIPELINE)).status).toBe(404);
   });
 });

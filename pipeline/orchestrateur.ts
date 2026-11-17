@@ -24,7 +24,7 @@ import type {
   Reglages,
   Tache,
 } from '../shared/types';
-import { ECHECS_MAX, notifier, type Contexte } from './contexte';
+import { ECHECS_MAX, estArret, notifier, type Contexte } from './contexte';
 import { idDossier, type Drive } from './drive';
 import { comparer, finaliserAnciens } from './actualisations';
 import { DOSSIER_DEPOT, driveComposite, driveDepot, estFichierDepot, idFichierDepot } from './depot';
@@ -42,6 +42,7 @@ export const PLAFOND_MINIMAL_USD = 3;
 export type Mode = 'auto' | 'scan';
 
 export interface OptionsIa {
+  gratuit: boolean;
   modeleMasse?: string;
   modeleExpert?: string;
   tarifs?: Reglages['tarifs'];
@@ -66,6 +67,7 @@ export type Issue =
   | 'termine'
   | 'a_reprendre'
   | 'plafond'
+  | 'quota'
   | 'sans_cle'
   | 'erreur';
 
@@ -93,7 +95,10 @@ export async function executer(d: Dependances): Promise<Issue> {
 
   // Deux sources, utilisables ensemble ou séparément : le Google Drive
   // (s'il est configuré et connecté) et les fichiers envoyés depuis l'app.
+  // Par défaut, seul le palier gratuit de Gemini est utilisé : rien ne peut être facturé.
+  const gratuit = reglages?.modeGratuit !== false;
   const dossierCours = idDossier(reglages?.dossierCours);
+  const dossierAnciens = idDossier(reglages?.dossierAnciens);
   const dossierAnnales = idDossier(reglages?.dossierAnnales);
   const driveConfigure = !!dossierCours && !!dossierAnnales;
   const jeton = driveConfigure ? await d.stockage.jetonDrive() : undefined;
@@ -169,7 +174,7 @@ export async function executer(d: Dependances): Promise<Issue> {
       await scanner(contexte, {
         cours: [...(avecDrive ? [dossierCours!] : []), ...(avecDepot ? [DOSSIER_DEPOT.cours] : [])],
         annales: [...(avecDrive ? [dossierAnnales!] : []), ...(avecDepot ? [DOSSIER_DEPOT.annales] : [])],
-        anciens: avecDepot ? [DOSSIER_DEPOT.anciens] : [],
+        anciens: [...(avecDrive && dossierAnciens ? [dossierAnciens] : []), ...(avecDepot ? [DOSSIER_DEPOT.anciens] : [])],
         garde: avecDrive,
       });
       await majEtat({ dernierScan: maintenant });
@@ -199,7 +204,7 @@ export async function executer(d: Dependances): Promise<Issue> {
         await majEtat({ statut: 'ok', message: noteEchecs.trim() || undefined, ...compter() });
         return 'termine';
       }
-      const estimation = estimer(contexte, NOMS_PAR_DEFAUT);
+      const estimation = estimer(contexte, NOMS_PAR_DEFAUT, gratuit);
       if (!memoire.lire<Estimation>('estimations', estimation.id)) {
         for (const ancienne of memoire.liste<Estimation>('estimations').filter((e) => e.statut === 'a_valider')) {
           await memoire.ecrire<Estimation>('estimations', { ...ancienne, statut: 'perimee' });
@@ -271,13 +276,14 @@ export async function executer(d: Dependances): Promise<Issue> {
       modeleExpert: reglages?.modeleExpert,
       tarifs: reglages?.tarifs,
       plafondUsd: plafond - dejaDepense,
+      gratuit,
     });
     contexte.ia = ia;
     for (const t of tachesOuvertes().filter((x) => x.type === 'generation_complete' && x.statut === 'en_attente')) {
       await memoire.ecrire<Tache>('taches', { ...t, statut: 'en_cours', majLe: maintenant });
     }
 
-    let plafondAtteint = false;
+    let arret: 'plafond' | 'quota' | undefined;
     try {
       await lireScans(contexte);
       await structurer(contexte);
@@ -296,8 +302,8 @@ export async function executer(d: Dependances): Promise<Issue> {
         });
       }
     } catch (erreur) {
-      if ((erreur as Error).name !== 'PlafondAtteint') throw erreur;
-      plafondAtteint = true;
+      if (!estArret(erreur)) throw erreur;
+      arret = (erreur as Error).name === 'QuotaAtteint' ? 'quota' : 'plafond';
     } finally {
       await majEtat({
         depense: { mois, usd: Math.round((dejaDepense + ia.compteur.total) * 100) / 100 },
@@ -306,7 +312,16 @@ export async function executer(d: Dependances): Promise<Issue> {
       journal(`Dépense de ce passage : ${ia.compteur.total.toFixed(2)} $`);
     }
 
-    if (plafondAtteint) {
+    if (arret === 'quota') {
+      journal('Limite du palier gratuit atteinte : reprise au prochain passage');
+      await majEtat({
+        statut: 'en_cours',
+        message: 'Limite gratuite de Gemini atteinte : le traitement reprend tout seul au prochain passage. Rien n’est dépensé.',
+        ...compter(),
+      });
+      return 'quota';
+    }
+    if (arret === 'plafond') {
       await signalerPlafond();
       return 'plafond';
     }

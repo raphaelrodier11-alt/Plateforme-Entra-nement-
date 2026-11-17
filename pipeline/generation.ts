@@ -29,6 +29,7 @@ import {
   tempsEcoule,
   texteDe,
   type Contexte,
+  estArret,
 } from './contexte';
 import { aTraiter, nbQuestionsCible, nbQuestionsReserve } from './import';
 import type { Piece } from './ia';
@@ -433,7 +434,7 @@ export async function traiterAnnales(c: Contexte): Promise<void> {
       const incontournables = [...publiees, ...aEcrire.values()].filter(estIncontournable).length;
       journal(`Annale traitée : ${extraites.length} questions, ${incontournables} incontournables`);
     } catch (erreur) {
-      if ((erreur as Error).name === 'PlafondAtteint') throw erreur;
+      if (estArret(erreur)) throw erreur;
       journal(`Annale en échec : ${erreurPublique(erreur)}`);
       await c.memoire.ecrire<Fichier>('fichiers', { ...sujet, echecs: (sujet.echecs ?? 0) + 1 });
     }
@@ -677,7 +678,7 @@ export async function genererChapitres(c: Contexte): Promise<void> {
       });
       journal(`Chapitre généré : ${nouvelles.length} questions, ${cartes.length} flashcards`);
     } catch (erreur) {
-      if ((erreur as Error).name === 'PlafondAtteint') throw erreur;
+      if (estArret(erreur)) throw erreur;
       journal(`Génération d'un chapitre en échec : ${erreurPublique(erreur)}`);
     }
   }
@@ -769,7 +770,7 @@ export async function verifierChapitres(c: Contexte): Promise<void> {
       }
       journal(`Chapitre vérifié : ${nouvelles.length} corrections proposées`);
     } catch (erreur) {
-      if ((erreur as Error).name === 'PlafondAtteint') throw erreur;
+      if (estArret(erreur)) throw erreur;
       journal(`Vérification d'un chapitre en échec : ${erreurPublique(erreur)}`);
     }
   }

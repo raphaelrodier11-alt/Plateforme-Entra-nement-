@@ -368,6 +368,10 @@ export interface Estimation {
   tauxEurParUsd: number;
   hypotheses: string[];
   tarifs: TarifModele[];
+  /** Palier gratuit : aucune dépense ; les montants sont alors à zéro. */
+  gratuit?: boolean;
+  /** Valeur de la génération au tarif payant (non facturée en mode gratuit). */
+  equivalentUsd?: number;
   statut: 'a_valider' | 'approuvee' | 'perimee';
 }
 
@@ -506,6 +510,13 @@ export interface Reglages {
   evenementsIgnores: string[];
   dossierCours?: string;
   dossierAnnales?: string;
+  /** Dossier des anciennes versions des cours (facultatif), comparées aux cours actuels. */
+  dossierAnciens?: string;
+  /**
+   * Mode gratuit (par défaut) : seul le palier gratuit de Gemini est utilisé,
+   * avec un seul modèle et un rythme limité. Rien ne peut être facturé.
+   */
+  modeGratuit?: boolean;
   modeleMasse?: string;
   modeleExpert?: string;
   /** Tarifs imposés, par rôle : `modele` vaut « masse » ou « expert ». */

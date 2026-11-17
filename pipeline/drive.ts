@@ -73,6 +73,8 @@ export function driveGoogle(obtenirJeton: () => Promise<string>): Drive {
         pageSize: '1000',
         supportsAllDrives: 'true',
         includeItemsFromAllDrives: 'true',
+        // Les cours d'une promo sont souvent dans un Drive partagé.
+        corpora: 'allDrives',
         ...(page ? { pageToken: page } : {}),
       });
       const reponse = (await (await lire(`${API}/files?${params}`)).json()) as {

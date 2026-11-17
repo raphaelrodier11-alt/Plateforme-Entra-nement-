@@ -135,10 +135,7 @@ const QCM = (n: number, depart: number) => ({
 
 export class IaTest implements Ia {
   readonly modeles = { masse: 'gemini-test-flash', expert: 'gemini-test-pro' };
-  readonly tarifs = {
-    masse: tarifPour('gemini-test-flash', 'masse'),
-    expert: tarifPour('gemini-test-pro', 'expert'),
-  };
+  readonly tarifs;
   readonly compteur = new Compteur();
   readonly appels: DemandeIa[] = [];
   private numero = 0;
@@ -147,11 +144,23 @@ export class IaTest implements Ia {
     private readonly plafondUsd: number,
     /** Coût fictif de chaque appel, en tokens écrits. */
     private readonly tokensParAppel = 1000,
-  ) {}
+    /** Nombre d'appels acceptés avant que la limite du palier gratuit soit atteinte. */
+    private readonly quotaApres = Infinity,
+    /** Mode gratuit : aucun coût, comme avec la vraie IA. */
+    sansCout = false,
+  ) {
+    const gratuit = (modele: string) => ({ modele, entreeUsdParM: 0, sortieUsdParM: 0, aVerifier: false });
+    this.tarifs = sansCout
+      ? { masse: gratuit(this.modeles.masse), expert: gratuit(this.modeles.expert) }
+      : { masse: tarifPour(this.modeles.masse, 'masse'), expert: tarifPour(this.modeles.expert, 'expert') };
+  }
 
   async json(demande: DemandeIa): Promise<unknown> {
     if (this.compteur.total >= this.plafondUsd) {
       throw Object.assign(new Error('Plafond'), { name: 'PlafondAtteint' });
+    }
+    if (this.appels.length >= this.quotaApres) {
+      throw Object.assign(new Error('quota'), { name: 'QuotaAtteint' });
     }
     this.appels.push(demande);
     this.compteur.ajouter(demande.etape, this.tarifs[demande.niveau], 1000, this.tokensParAppel);

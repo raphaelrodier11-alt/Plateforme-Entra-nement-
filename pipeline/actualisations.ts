@@ -8,7 +8,7 @@
  *    remplacé par une nouvelle version.
  */
 import type { Actualisation, Chapitre, Fichier } from '../shared/types';
-import { avecPages, iaRequise, notifier, tempsEcoule, texteDe, type Contexte } from './contexte';
+import { avecPages, iaRequise, notifier, tempsEcoule, texteDe, type Contexte, estArret } from './contexte';
 import { aTraiter, idPrecedent } from './import';
 import { erreurPublique, journal } from './journal';
 import { SYSTEME, consigneActualisation } from './prompts';
@@ -154,7 +154,7 @@ export async function comparer(c: Contexte): Promise<void> {
         aComparer: false,
       });
     } catch (erreur) {
-      if ((erreur as Error).name === 'PlafondAtteint') throw erreur;
+      if (estArret(erreur)) throw erreur;
       journal(`Comparaison en échec : ${erreurPublique(erreur)}`);
     }
   }

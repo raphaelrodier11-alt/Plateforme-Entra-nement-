@@ -26,6 +26,7 @@ import {
   tempsEcoule,
   texteDe,
   type Contexte,
+  estArret,
 } from './contexte';
 import type { FichierDrive } from './drive';
 import { natureDe, texteSuspect } from './extraction';
@@ -279,6 +280,7 @@ const QUESTIONS_PAR_LOT = 12;
 export function estimer(
   c: Contexte,
   modeles: Record<Niveau, string>,
+  gratuit = false,
   tarifsImposes = c.memoire.liste<{ id: string; tarifs?: Estimation['tarifs'] }>('reglages')[0]?.tarifs,
 ): Estimation {
   const fichiers = c.memoire.liste<Fichier>('fichiers').filter(aTraiter);
@@ -345,7 +347,11 @@ export function estimer(
   ajouter('Classement en matières et chapitres', 'masse', Math.ceil(fichiers.length / FICHIERS_PAR_CLASSEMENT) || 1, fichiers.length * 160 + 800, fichiers.length * 70);
 
   const liste = [...lignes.values()].filter((l) => l.coutUsd > 0);
-  const totalUsd = liste.reduce((s, l) => s + l.coutUsd, 0);
+  const equivalentUsd = liste.reduce((s, l) => s + l.coutUsd, 0);
+  const nbRequetes = liste.reduce((s, l) => s + l.appels, 0);
+  // Mode gratuit : tout est comptabilisé à zéro, la valeur payante n'est donnée qu'à titre indicatif.
+  const totalUsd = gratuit ? 0 : equivalentUsd;
+  if (gratuit) for (const l of liste) l.coutUsd = 0;
   const parChapitre = nbCours > 0 ? totalUsd / nbCours : totalUsd;
   // Régime de croisière : deux fichiers mis à jour et un nouveau chapitre par mois.
   const mensuelUsd = parChapitre * 3;
@@ -365,9 +371,17 @@ export function estimer(
       `${pagesScannees} page${pagesScannees > 1 ? 's' : ''} scannée${pagesScannees > 1 ? 's' : ''} à faire lire par l'IA.`,
       `Environ ${questionsAnnales} questions d'annales à extraire ; 20 à 50 QCM générés par cours, plus une réserve pour les examens blancs.`,
       'Chaque mois ensuite : hypothèse de deux fichiers mis à jour et un nouveau chapitre. La vérification hebdomadaire du drive est gratuite.',
-      "Estimation indicative : la dépense réelle dépend de la longueur des réponses de l'IA. Un plafond de dépense arrête le traitement en cas de dépassement.",
+      ...(gratuit
+        ? [
+            "Mode gratuit : seul le palier gratuit de Gemini est utilisé, avec un seul modèle. Aucune dépense n'est possible : si la limite de Google est atteinte, le traitement s'arrête et reprend plus tard.",
+            `Environ ${nbRequetes} requêtes à envoyer. Le palier gratuit limite leur nombre par minute et par jour : compte plusieurs heures, voire quelques jours pour un gros volume. Valeur au tarif payant, non facturée : environ ${(Math.round(equivalentUsd * 100) / 100).toFixed(2)} $.`,
+          ]
+        : [
+            "Estimation indicative : la dépense réelle dépend de la longueur des réponses de l'IA. Un plafond de dépense arrête le traitement en cas de dépassement.",
+          ]),
     ],
-    tarifs: [tarifs.masse, tarifs.expert],
+    tarifs: gratuit ? [] : [tarifs.masse, tarifs.expert],
+    ...(gratuit ? { gratuit: true, equivalentUsd: Math.round(equivalentUsd * 100) / 100 } : {}),
     statut: 'a_valider',
   };
 }
@@ -445,7 +459,7 @@ export async function lireScans(c: Contexte): Promise<void> {
         });
       }
     } catch (erreur) {
-      if ((erreur as Error).name === 'PlafondAtteint') throw erreur;
+      if (estArret(erreur)) throw erreur;
       journal(`Lecture d'un scan impossible : ${erreurPublique(erreur)}`);
       await c.memoire.ecrire<Fichier>('fichiers', { ...fichier, echecs: (fichier.echecs ?? 0) + 1 });
     }

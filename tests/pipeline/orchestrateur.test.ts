@@ -68,6 +68,8 @@ beforeEach(async () => {
       id: 'principal',
       dossierCours: `https://drive.google.com/drive/folders/${COURS}`,
       dossierAnnales: `https://drive.google.com/drive/folders/${ANNALES}?usp=sharing`,
+      // Ces tests couvrent le parcours payant ; le mode gratuit a ses propres tests.
+      modeGratuit: false,
     },
   ]);
   drive.dossiers.set(COURS, [fichier('f-ic', 'Cardiologie/Insuffisance cardiaque.pdf', COURS_IC)]);
@@ -365,6 +367,7 @@ describe('pipeline : scans et plafond de dépense', () => {
         id: 'principal',
         dossierCours: COURS,
         dossierAnnales: ANNALES,
+        modeGratuit: false,
         plafondMensuelUsd: 0.05,
       },
     ]);
@@ -384,7 +387,7 @@ describe('pipeline : scans et plafond de dépense', () => {
 
     // Plafond relevé dans les réglages : le traitement reprend et se termine.
     await stockage.ecrire('reglages', [
-      { id: 'principal', dossierCours: COURS, dossierAnnales: ANNALES, plafondMensuelUsd: 50 },
+      { id: 'principal', dossierCours: COURS, dossierAnnales: ANNALES, modeGratuit: false, plafondMensuelUsd: 50 },
     ]);
     maintenant += 3_600_000;
     expect(await passer()).toBe('termine');

@@ -69,6 +69,7 @@ function SectionDrive({ reglages }: { reglages: TypeReglages }) {
   const [statut, setStatut] = useState<StatutDrive>();
   const [cours, setCours] = useState(reglages.dossierCours ?? '');
   const [annales, setAnnales] = useState(reglages.dossierAnnales ?? '');
+  const [anciens, setAnciens] = useState(reglages.dossierAnciens ?? '');
   const [enregistre, setEnregistre] = useState(false);
   const retour = params.get('drive');
 
@@ -95,6 +96,7 @@ function SectionDrive({ reglages }: { reglages: TypeReglages }) {
       ...reglages,
       dossierCours: cours.trim() || undefined,
       dossierAnnales: annales.trim() || undefined,
+      dossierAnciens: anciens.trim() || undefined,
       majLe: Date.now(),
     });
     setEnregistre(true);
@@ -152,6 +154,18 @@ function SectionDrive({ reglages }: { reglages: TypeReglages }) {
                 type="url"
                 value={annales}
                 onChange={(e) => setAnnales(e.target.value)}
+                placeholder="https://drive.google.com/drive/folders/…"
+                className={STYLE_CHAMP}
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1 block text-xs text-muet">
+                Lien du dossier des anciennes versions (facultatif, comparées aux cours actuels)
+              </span>
+              <input
+                type="url"
+                value={anciens}
+                onChange={(e) => setAnciens(e.target.value)}
                 placeholder="https://drive.google.com/drive/folders/…"
                 className={STYLE_CHAMP}
               />
@@ -290,6 +304,7 @@ function SectionIa({ reglages }: { reglages: TypeReglages }) {
   const [masse, setMasse] = useState(reglages.modeleMasse ?? '');
   const [expert, setExpert] = useState(reglages.modeleExpert ?? '');
   const [plafond, setPlafond] = useState(reglages.plafondMensuelUsd?.toString() ?? '');
+  const [gratuit, setGratuit] = useState(reglages.modeGratuit !== false);
   const [prix, setPrix] = useState({
     masseEntree: tarif('masse')?.entreeUsdParM.toString() ?? '',
     masseSortie: tarif('masse')?.sortieUsdParM.toString() ?? '',
@@ -311,6 +326,7 @@ function SectionIa({ reglages }: { reglages: TypeReglages }) {
       modeleMasse: masse.trim() || undefined,
       modeleExpert: expert.trim() || undefined,
       plafondMensuelUsd: nombreSaisi(plafond),
+      modeGratuit: gratuit,
       tarifs: tarifs.length ? tarifs : undefined,
       majLe: Date.now(),
     });
@@ -333,7 +349,23 @@ function SectionIa({ reglages }: { reglages: TypeReglages }) {
 
   return (
     <Carte titre="Intelligence artificielle (Gemini)">
-      <p className="text-sm text-texte-2">
+      <label className="flex items-start gap-3 rounded-xl border border-bon/40 bg-bon/10 p-3 text-sm">
+        <input
+          type="checkbox"
+          checked={gratuit}
+          onChange={(e) => setGratuit(e.target.checked)}
+          className="mt-0.5 size-5 shrink-0 accent-[#3987e5]"
+        />
+        <span>
+          <strong className="font-semibold">Mode gratuit (recommandé)</strong>
+          <span className="mt-0.5 block text-texte-2">
+            N'utilise que le palier gratuit de Gemini, avec un seul modèle. Rien ne peut être facturé : si la limite
+            de Google est atteinte, le traitement s'arrête et reprend tout seul plus tard. Plus lent, et sans le
+            modèle le plus puissant pour la détection d'erreurs.
+          </span>
+        </span>
+      </label>
+      <p className="mt-3 text-sm text-texte-2">
         Par défaut, l'import choisit lui-même un modèle économique pour la génération de masse
         (fiches, QCM, lecture des scans) et un modèle plus puissant pour les corrections
         d'erreurs. Tu peux imposer un modèle précis ; laisse vide pour le choix automatique.
