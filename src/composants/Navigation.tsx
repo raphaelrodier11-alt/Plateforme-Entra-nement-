@@ -16,6 +16,7 @@ import {
   ListChecks,
   RefreshCw,
   Settings,
+  Upload,
   type LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -75,6 +76,7 @@ export function Navigation() {
     { vers: '/planning', libelle: 'Planning', icone: CalendarDays },
     { vers: '/examens', libelle: 'Examens', icone: GraduationCap },
     { vers: '/suivi', libelle: 'Suivi', icone: ChartLine },
+    { vers: '/fichiers', libelle: 'Fichiers', icone: Upload },
     {
       vers: '/corrections',
       libelle: 'Mises à jour',

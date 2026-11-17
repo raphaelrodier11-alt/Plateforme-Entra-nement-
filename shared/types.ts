@@ -554,3 +554,28 @@ export interface TexteFichier {
   /** Pages sans texte exploitable, à faire lire par l'IA (scans, images). */
   pagesAOcr: number[];
 }
+
+// ---------------------------------------------------------------------------
+// Dépôt de fichiers (envoi direct depuis l'application, sans Google Drive)
+// ---------------------------------------------------------------------------
+
+export type RoleDepot = 'cours' | 'annales';
+
+/**
+ * Fichier envoyé depuis l'app. Son contenu est conservé par le serveur, en
+ * morceaux, jusqu'à ce que le pipeline l'ait lu ; ici ne figure que sa fiche.
+ */
+export interface Depot {
+  id: string;
+  nom: string;
+  role: RoleDepot;
+  mimeType: string;
+  taille: number;
+  /** Nombre de morceaux du contenu. */
+  morceaux: number;
+  /** Version du contenu (instant d'envoi) : un nouvel envoi du même fichier la change. */
+  v: number;
+  ajouteLe: number;
+  /** Date de la version actuelle, au format ISO (sert de « date de modification »). */
+  modifieLe: string;
+}

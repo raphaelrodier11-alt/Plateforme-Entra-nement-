@@ -14,6 +14,8 @@ export interface Stockage {
   supprimer(collection: Collection, ids: string[]): Promise<void>;
   /** Jeton d'accès Google Drive de courte durée, si le drive est connecté. */
   jetonDrive(): Promise<string | undefined>;
+  /** Un morceau (texte base64) d'un fichier envoyé depuis l'application. */
+  morceauDepot(id: string, n: number): Promise<string | undefined>;
 }
 
 const LOT = 50;
@@ -60,6 +62,10 @@ export function stockageApi(appUrl: string, cle: string): Stockage {
       pousser(docs.map((data) => ({ collection, id: data.id, data, majLe: Date.now() }))),
     supprimer: (collection, ids) =>
       pousser(ids.map((id) => ({ collection, id, majLe: Date.now(), supprime: true }))),
+    async morceauDepot(id, n) {
+      const reponse = await appeler(`/api/admin/depot/${id}/${n}`);
+      return reponse.ok ? await reponse.text() : undefined;
+    },
     async jetonDrive() {
       const reponse = await appeler('/api/admin/drive/jeton', { method: 'POST' });
       if (!reponse.ok) return undefined;

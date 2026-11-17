@@ -17,6 +17,13 @@ const INSTRUCTIONS = [
      PRIMARY KEY (collection, id)
    )`,
   `CREATE INDEX IF NOT EXISTS docs_rev ON docs (rev)`,
+  `CREATE TABLE IF NOT EXISTS depot_morceaux (
+     id TEXT NOT NULL,
+     v INTEGER NOT NULL,
+     n INTEGER NOT NULL,
+     data TEXT NOT NULL,
+     PRIMARY KEY (id, v, n)
+   )`,
   `CREATE TABLE IF NOT EXISTS meta (
      cle TEXT PRIMARY KEY,
      valeur TEXT NOT NULL

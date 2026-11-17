@@ -7,9 +7,11 @@ fait par un lien secret.
 
 ## Ce que fait l'application
 
-- **Import du Google Drive** (lecture seule) : cours en PDF, Word, PowerPoint ou
-  Google Docs, annales et corrigés. Les chapitres sont détectés et classés
-  automatiquement. Le drive est revérifié chaque semaine.
+- **Import des cours et annales**, de deux façons qui peuvent se combiner :
+  l'envoi direct de fichiers depuis l'app (page **Fichiers**, la plus simple),
+  ou la connexion à un Google Drive (lecture seule, revérifié chaque semaine).
+  PDF, Word, PowerPoint, texte, photos de pages. Les chapitres sont détectés et
+  classés automatiquement.
 - **Fiches de révision visuelles** : arbres de décision, schémas interactifs,
   séquences pas à pas, listes courtes, moyens mnémotechniques, modèles 3D
   schématiques. Jamais de tableau.
@@ -49,7 +51,7 @@ fait par un lien secret.
 |---|---|
 | `shared/` | Logique métier pure, partagée par l'app, le serveur et le pipeline : barème, incontournables et pièges, répétition espacée, planning, prédiction de note, gamification, lecture du calendrier. |
 | `src/` | Application web (React, Vite, Tailwind, Dexie pour IndexedDB, three.js pour la 3D). |
-| `worker/` | Serveur Cloudflare (Hono) et base D1. |
+| `worker/` | Serveur Cloudflare (Hono) et base D1, dont le dépôt de fichiers (`worker/depot.ts`). |
 | `pipeline/` | Import du drive et génération par l'IA, lancés par GitHub Actions. |
 | `tests/` | Tests automatisés (Vitest). |
 | `.github/workflows/` | Vérifications, déploiement, pipeline, réinitialisation du lien secret. |
@@ -122,7 +124,26 @@ Actions → New repository secret**.
 Tu peux essayer l'app tout de suite avec **Réglages → Charger la démonstration**
 (six chapitres fictifs, stockés sur l'appareil seulement).
 
-### 3. Google Drive (lecture seule)
+### 3. Envoyer tes fichiers (le plus simple)
+
+Aucun compte Google à configurer. Dans l'app, page **Fichiers** :
+
+1. Choisis **Cours** ou **Annales et corrigés**, puis **Choisir des fichiers**
+   (depuis un téléphone, l'app de fichiers ou la photothèque s'ouvre).
+2. Formats : PDF, Word, PowerPoint, texte, photos. 50 Mo au maximum par fichier.
+3. Renvoyer un fichier du même nom le remplace : le chapitre est régénéré, sans
+   validation supplémentaire puisque c'est toi qui l'as renvoyé.
+4. Un conseil pour les annales : mets la matière et l'année dans le nom du fichier
+   (« Cardio partiel 2024.pdf »), le classement s'en sert.
+
+Les fichiers sont gardés dans la base Cloudflare (jamais dans le dépôt GitHub). Le
+traitement démarre au passage suivant du pipeline, toutes les heures au plus ; passe
+ensuite à l'étape 5 (clé Gemini) et au premier import.
+
+### 3 bis. Google Drive (facultatif, lecture seule)
+
+Utile pour surveiller automatiquement les mises à jour d'un drive partagé. Si tu
+n'en as pas besoin, saute cette étape.
 
 L'app se connecte avec ton compte Google et ne demande que la permission
 `drive.readonly` : elle ne peut rien modifier ni supprimer.
@@ -160,8 +181,9 @@ facturation est activée. Vérifie les conditions en vigueur avant de choisir.
 
 ### 5. Premier import
 
-1. **Actions → Import du drive → Run workflow**, mode `scan` (ou attends le passage
-   automatique, toutes les heures).
+1. Envoie tes fichiers (étape 3) ou connecte ton drive (étape 3 bis), puis attends le
+   passage automatique (toutes les heures) ou lance **Actions → Import du drive → Run
+   workflow**.
 2. Le pipeline lit les fichiers et calcule une **estimation de coût**, sans rien
    dépenser. Elle apparaît dans l'app, page **Mises à jour**.
 3. Vérifie les tarifs utilisés (voir « Coûts »), puis **Approuver et lancer la
@@ -180,7 +202,7 @@ elle-même.
 
 | Étape | Ce qui se passe | Coût |
 |---|---|---|
-| Vérification | Liste les deux dossiers et compare avec l'état connu : fichiers nouveaux, modifiés, disparus. Chaque semaine, ou à la demande. | Gratuit |
+| Vérification | Liste les fichiers envoyés et, si un drive est connecté, ses deux dossiers, puis compare avec l'état connu : fichiers nouveaux, modifiés, disparus. Les fichiers envoyés sont pris en compte à chaque passage ; le drive, chaque semaine ou à la demande. | Gratuit |
 | Lecture | Télécharge les fichiers nouveaux. Word et PowerPoint sont convertis en PDF (LibreOffice), les documents Google exportés en PDF. Le texte présent dans le fichier est lu directement. | Gratuit |
 | Estimation | Calcule le coût de la génération et attend ton accord. | Gratuit |
 | Scans | Les pages sans texte (scans, photos) sont lues par l'IA. Un passage illisible est marqué et listé dans l'app, jamais deviné. Un texte lu incohérent est signalé. | Modèle économique |
@@ -279,5 +301,8 @@ Pour l'API locale, crée un fichier `.dev.vars` contenant
   doute, le cours fait foi.
 - **Classement automatique.** Un fichier mal nommé peut être rangé dans le mauvais
   chapitre ; la détection d'erreurs signale les questions mal classées.
+- **Fichiers envoyés.** Ils passent par le serveur gratuit de Cloudflare : un fichier de
+  50 Mo est découpé en 84 morceaux d'environ 600 Ko. Une connexion mobile très instable
+  peut interrompre un envoi ; il suffit de renvoyer le fichier.
 - **Délai après validation.** Sans le jeton facultatif `DISPATCH_TOKEN`, une
   validation est traitée au passage horaire suivant.

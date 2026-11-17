@@ -23,6 +23,7 @@ import {
   type CasClinique,
   type Chapitre,
   type Decision,
+  type Depot,
   type Disponibilite,
   type Estimation,
   type EtatPipeline,
@@ -52,6 +53,7 @@ export interface Brut {
   flashcards: Flashcard[];
   partiels: Partiel[];
   fichiers: Fichier[];
+  depots: Depot[];
   anomalies: Anomalie[];
   illisibles: PassageIllisible[];
   notifications: NotificationApp[];

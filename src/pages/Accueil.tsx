@@ -49,13 +49,13 @@ export function Accueil() {
       <div className="mx-auto max-w-xl pt-10">
         <EtatVide icone={BookOpen} titre="Bienvenue dans Dr Rodier">
           <p>
-            Aucun cours n'a encore été importé. Connecte ton Google Drive dans les réglages pour
-            lancer l'import, ou charge un petit jeu de données de démonstration pour découvrir
-            l'application.
+            Aucun cours n'a encore été importé. Envoie tes cours et tes annales depuis ton
+            téléphone ou ton ordinateur : l'application en tire les chapitres, les fiches et les
+            QCM. Tu peux aussi charger un petit jeu de démonstration pour découvrir l'application.
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-2">
-            <LienBouton to="/reglages" variante="primaire">
-              Connecter mon Drive
+            <LienBouton to="/fichiers" variante="primaire">
+              Envoyer mes fichiers
             </LienBouton>
             <Bouton icone={Sparkles} onClick={() => void chargerDemo()}>
               Charger la démonstration

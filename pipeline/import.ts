@@ -56,15 +56,21 @@ export interface BilanScan {
   supprimes: number;
 }
 
-export async function scanner(
-  c: Contexte,
-  dossierCours: string,
-  dossierAnnales: string,
-): Promise<BilanScan> {
-  const listes: [RoleFichier, FichierDrive[]][] = [
-    ['cours', await c.drive.lister(dossierCours)],
-    ['annale', await c.drive.lister(dossierAnnales)],
-  ];
+/** Où chercher les fichiers : dossiers du drive et/ou fichiers envoyés. */
+export interface SourcesScan {
+  cours: string[];
+  annales: string[];
+  /**
+   * Vrai quand un drive est connecté : un drive qui paraît soudain vide est
+   * alors plus probablement une panne qu'une suppression générale.
+   */
+  garde: boolean;
+}
+
+export async function scanner(c: Contexte, sources: SourcesScan): Promise<BilanScan> {
+  const listes: [RoleFichier, FichierDrive[]][] = [];
+  for (const dossier of sources.cours) listes.push(['cours', await c.drive.lister(dossier)]);
+  for (const dossier of sources.annales) listes.push(['annale', await c.drive.lister(dossier)]);
   const connus = c.memoire.liste<Fichier>('fichiers');
   const bilan: BilanScan = { total: 0, nouveaux: 0, modifies: 0, supprimes: 0 };
   const vus = new Set<string>();
@@ -103,8 +109,12 @@ export async function scanner(
       } else if (change) {
         Object.assign(suivant, { modifieLe: f.modifieLe, empreinte: f.empreinte, echecs: 0 });
         const dejaVue = f.modifieLe === connu.versionIgnoree || f.modifieLe === connu.versionTraitee;
-        if (connu.etat === 'a_jour' && !dejaVue) {
-          // Fichier modifié : rien n'est mis à jour sans validation.
+        if (connu.etat === 'a_jour' && !dejaVue && f.depot) {
+          // Fichier renvoyé par l'utilisateur lui-même : c'est déjà son accord.
+          suivant.etat = 'maj_validee';
+          bilan.modifies += 1;
+        } else if (connu.etat === 'a_jour' && !dejaVue) {
+          // Fichier modifié dans le drive : rien n'est mis à jour sans validation.
           suivant.etat = 'modifie';
           bilan.modifies += 1;
           await notifier(c, {
@@ -132,7 +142,7 @@ export async function scanner(
   // Garde-fou : un drive qui paraît soudain vide est plus sûrement une
   // panne ou un dossier mal renseigné qu'une suppression générale.
   const actifs = connus.filter((f) => f.etat !== 'supprime');
-  if (bilan.total === 0 && actifs.length > 0) {
+  if (sources.garde && bilan.total === 0 && actifs.length > 0) {
     throw new Error('Le drive ne renvoie aucun fichier : vérifie les dossiers indiqués dans les réglages.');
   }
 
@@ -143,8 +153,8 @@ export async function scanner(
     await notifier(c, {
       id: `supprime:${connu.id}:${connu.modifieLe}`,
       type: 'fichier_supprime',
-      titre: 'Un fichier a disparu de ton drive',
-      message: `« ${connu.nom} » n'est plus dans le drive. Le contenu déjà généré est conservé.`,
+      titre: 'Un fichier a disparu',
+      message: `« ${connu.nom} » n'est plus disponible. Le contenu déjà généré est conservé.`,
       fichierId: connu.id,
       chapitreId: connu.chapitreId,
     });

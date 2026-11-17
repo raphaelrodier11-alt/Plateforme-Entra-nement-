@@ -13,6 +13,8 @@ export interface FichierDrive {
   empreinte?: string;
   taille?: number;
   lien?: string;
+  /** Fichier envoyé depuis l'application (et non lu dans le drive). */
+  depot?: boolean;
 }
 
 export interface Drive {

@@ -16,6 +16,7 @@
  */
 import type {
   Chapitre,
+  Depot,
   Estimation,
   EtatPipeline,
   Fichier,
@@ -25,6 +26,7 @@ import type {
 } from '../shared/types';
 import { ECHECS_MAX, notifier, type Contexte } from './contexte';
 import { idDossier, type Drive } from './drive';
+import { DOSSIER_DEPOT, driveComposite, driveDepot, estFichierDepot, idFichierDepot } from './depot';
 import { ajouterQuestions, genererChapitres, traiterAnnales, verifierChapitres } from './generation';
 import type { Ia } from './ia';
 import { aTraiter, estimer, lireFichiers, lireScans, scanner, structurer } from './import';
@@ -74,7 +76,7 @@ const NOMS_PAR_DEFAUT: Record<Niveau, string> = {
 export async function executer(d: Dependances): Promise<Issue> {
   const maintenant = d.maintenant ?? Date.now();
   const memoire = new Memoire(d.stockage);
-  await memoire.charger('reglages', 'etat', 'taches', 'fichiers', 'chapitres', 'estimations', 'notifications');
+  await memoire.charger('reglages', 'etat', 'taches', 'fichiers', 'depots', 'chapitres', 'estimations', 'notifications');
 
   const reglages = memoire.lire<Reglages>('reglages', 'principal');
   const lireEtat = (): EtatPipeline =>
@@ -88,26 +90,37 @@ export async function executer(d: Dependances): Promise<Issue> {
     }
   };
 
+  // Deux sources, utilisables ensemble ou séparément : le Google Drive
+  // (s'il est configuré et connecté) et les fichiers envoyés depuis l'app.
   const dossierCours = idDossier(reglages?.dossierCours);
   const dossierAnnales = idDossier(reglages?.dossierAnnales);
-  if (!dossierCours || !dossierAnnales) {
-    journal("Dossiers du drive non renseignés dans l'app : rien à faire");
+  const driveConfigure = !!dossierCours && !!dossierAnnales;
+  const jeton = driveConfigure ? await d.stockage.jetonDrive() : undefined;
+  const avecDrive = driveConfigure && !!jeton;
+  const depotsActuels = (): Depot[] => memoire.liste<Depot>('depots');
+  const fichiersDepot = (): Fichier[] =>
+    memoire.liste<Fichier>('fichiers').filter((f) => estFichierDepot(f.id) && f.etat !== 'supprime');
+  const avecDepot = depotsActuels().length > 0 || fichiersDepot().length > 0;
+
+  if (!avecDrive && !avecDepot) {
+    const sansConnexion = driveConfigure;
+    journal(sansConnexion ? 'Google Drive non connecté : rien à faire' : 'Aucune source de fichiers : rien à faire');
     await majEtat({
       statut: 'jamais_lance',
-      message: "Indique les dossiers de cours et d'annales dans les réglages.",
-    });
-    return 'non_configure';
-  }
-  const jeton = await d.stockage.jetonDrive();
-  if (!jeton) {
-    journal('Google Drive non connecté : rien à faire');
-    await majEtat({
-      statut: 'jamais_lance',
-      message: 'Connecte ton compte Google dans les réglages.',
+      message: sansConnexion
+        ? 'Connecte ton compte Google dans les réglages, ou envoie tes fichiers depuis la page Fichiers.'
+        : "Envoie tes fichiers depuis la page Fichiers, ou indique les dossiers du drive dans les réglages.",
       driveConnecte: false,
     });
     return 'non_configure';
   }
+
+  /** Les fichiers envoyés ont-ils tous été vus par le pipeline, dans leur version actuelle ? */
+  const depotsVus = (): boolean =>
+    depotsActuels().every((dep) => {
+      const f = memoire.lire<Fichier>('fichiers', idFichierDepot(dep.id));
+      return !!f && f.etat !== 'supprime' && f.modifieLe === dep.modifieLe;
+    }) && fichiersDepot().every((f) => !!memoire.lire('depots', f.id.slice('depot:'.length)));
 
   const tachesOuvertes = (): Tache[] =>
     memoire.liste<Tache>('taches').filter((t) => t.statut === 'en_attente' || t.statut === 'en_cours');
@@ -125,6 +138,8 @@ export async function executer(d: Dependances): Promise<Issue> {
     d.mode === 'scan' ||
     !etatInitial.dernierScan ||
     maintenant - etatInitial.dernierScan >= SEMAINE_MS ||
+    // Un fichier envoyé est pris en compte tout de suite, sans attendre la semaine.
+    !depotsVus() ||
     tachesOuvertes().some((t) => t.type === 'verifier_drive');
   if (!scanDu && !resteDuTravail() && tachesOuvertes().length === 0) {
     journal('Rien à faire');
@@ -137,17 +152,24 @@ export async function executer(d: Dependances): Promise<Issue> {
   const contexte: Contexte = {
     memoire,
     // Le jeton Google expire au bout d'une heure : il est redemandé au besoin.
-    drive: d.creerDrive(jetonRenouvele(d.stockage, jeton)),
+    drive: driveComposite(
+      avecDrive ? d.creerDrive(jetonRenouvele(d.stockage, jeton!)) : undefined,
+      driveDepot(depotsActuels, d.stockage),
+    ),
     maintenant,
     lire: d.lire,
     echeance: Date.now() + d.budgetMinutes * 60_000,
   };
 
   try {
-    await majEtat({ statut: 'en_cours', message: undefined, driveConnecte: true });
+    await majEtat({ statut: 'en_cours', message: undefined, driveConnecte: avecDrive });
 
     if (scanDu) {
-      await scanner(contexte, dossierCours, dossierAnnales);
+      await scanner(contexte, {
+        cours: [...(avecDrive ? [dossierCours!] : []), ...(avecDepot ? [DOSSIER_DEPOT.cours] : [])],
+        annales: [...(avecDrive ? [dossierAnnales!] : []), ...(avecDepot ? [DOSSIER_DEPOT.annales] : [])],
+        garde: avecDrive,
+      });
       await majEtat({ dernierScan: maintenant });
       await cloreTaches('verifier_drive');
     }

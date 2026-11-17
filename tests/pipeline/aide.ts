@@ -38,6 +38,31 @@ export class StockageMemoire implements Stockage {
     return this.jeton;
   }
 
+  /** Morceaux des fichiers envoyés, par « identifiant/numéro », en base64. */
+  readonly morceaux = new Map<string, string>();
+
+  async morceauDepot(id: string, n: number): Promise<string | undefined> {
+    return this.morceaux.get(`${id}/${n}`);
+  }
+
+  /** Simule un envoi depuis l'app : un seul morceau, avec sa fiche. */
+  async deposer(depot: { id: string; nom: string; role: 'cours' | 'annales'; contenu: string; modifieLe: string }): Promise<void> {
+    this.morceaux.set(`${depot.id}/0`, Buffer.from(depot.contenu).toString('base64'));
+    await this.ecrire('depots', [
+      {
+        id: depot.id,
+        nom: depot.nom,
+        role: depot.role,
+        mimeType: 'application/pdf',
+        taille: depot.contenu.length,
+        morceaux: 1,
+        v: Date.parse(depot.modifieLe),
+        ajouteLe: Date.parse(depot.modifieLe),
+        modifieLe: depot.modifieLe,
+      },
+    ]);
+  }
+
   liste<T>(collection: Collection): T[] {
     return [...this.table(collection).values()] as T[];
   }

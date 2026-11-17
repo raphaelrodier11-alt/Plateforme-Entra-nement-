@@ -115,8 +115,9 @@ function SectionDrive({ reglages }: { reglages: TypeReglages }) {
       }
     >
       <p className="text-sm text-texte-2">
-        Dr Rodier lit tes dossiers de cours et d'annales en lecture seule : il ne peut rien
-        modifier ni supprimer dans ton drive.
+        Facultatif. Pour envoyer tes fichiers directement, utilise la page Fichiers. La connexion
+        à Google Drive ajoute la surveillance automatique des mises à jour : Dr Rodier lit tes
+        dossiers en lecture seule, sans rien modifier ni supprimer dans ton drive.
       </p>
 
       {retour === 'ok' && (

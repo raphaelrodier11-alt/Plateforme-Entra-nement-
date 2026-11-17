@@ -19,6 +19,7 @@ import {
   roleDeLaCle,
 } from './acces';
 import { appliquerDecision } from './decisions';
+import { depot, depotAdmin } from './depot';
 import { LIMITE_POUSSEE, LIMITE_TIRAGE, lireDoc, pousser, tirer } from './docs';
 import {
   deconnecterDrive,
@@ -211,6 +212,11 @@ app.post('/api/admin/reinitialiser-acces', async (c) => {
   await reinitialiserAcces(c.env);
   return c.json({ ok: true });
 });
+
+// --- Dépôt de fichiers -----------------------------------------------------
+
+app.route('/api/depot', depot);
+app.route('/api/admin/depot', depotAdmin);
 
 app.all('/api/*', (c) => c.json({ erreur: 'introuvable' }, 404));
 

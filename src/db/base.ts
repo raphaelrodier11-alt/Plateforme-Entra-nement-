@@ -36,9 +36,17 @@ export class BaseLocale extends Dexie {
 
   constructor(nom = 'dr-rodier') {
     super(nom);
-    const schema: Record<string, string> = { file: 'cle', meta: 'cle' };
-    for (const collection of COLLECTIONS_CLIENT) schema[collection] = INDEX[collection] ?? 'id';
-    this.version(1).stores(schema);
+    const schema = (exclues: Collection[]): Record<string, string> => {
+      const tables: Record<string, string> = { file: 'cle', meta: 'cle' };
+      for (const collection of COLLECTIONS_CLIENT) {
+        if (!exclues.includes(collection)) tables[collection] = INDEX[collection] ?? 'id';
+      }
+      return tables;
+    };
+    // Chaque ajout de table demande une nouvelle version : les appareils déjà
+    // installés migrent sans perdre leurs données.
+    this.version(1).stores(schema(['depots']));
+    this.version(2).stores(schema([]));
   }
 
   collection<T extends { id: string }>(nom: Collection): Table<T, string> {

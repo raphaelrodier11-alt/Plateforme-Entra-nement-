@@ -20,6 +20,7 @@ import { Corrections } from './pages/Corrections';
 import { Cours } from './pages/Cours';
 import { Erreurs } from './pages/Erreurs';
 import { Examens } from './pages/Examens';
+import { Fichiers } from './pages/Fichiers';
 import { Flashcards } from './pages/Flashcards';
 import { PagePlanning } from './pages/Planning';
 import { Qcm } from './pages/Qcm';
@@ -131,6 +132,7 @@ export function App() {
               <Route path="/erreurs" element={<Erreurs />} />
               <Route path="/planning" element={<PagePlanning />} />
               <Route path="/suivi" element={<Suivi />} />
+              <Route path="/fichiers" element={<Fichiers />} />
               <Route path="/corrections" element={<Corrections />} />
               <Route path="/reglages" element={<Reglages />} />
               <Route path="*" element={<Accueil />} />

@@ -11,6 +11,7 @@ export const COLLECTIONS = {
   matieres: 'contenu',
   chapitres: 'contenu',
   fichiers: 'contenu',
+  depots: 'contenu',
   partiels: 'contenu',
   questions: 'contenu',
   cas: 'contenu',
