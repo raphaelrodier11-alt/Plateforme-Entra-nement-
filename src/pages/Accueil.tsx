@@ -26,6 +26,7 @@ import { Docteur } from '../composants/Docteur';
 import { MoniteurEcg } from '../composants/Ecg';
 import { motDuJour, salutation } from '../../shared/motivation';
 import { CompteARebours } from '../composants/CompteARebours';
+import { ProgressionImport } from '../composants/ProgressionImport';
 import { QuestionDuJour } from '../composants/QuestionDuJour';
 import { Suggestions } from '../composants/Suggestions';
 import { chargerDemo } from '../demo/charger';
@@ -136,6 +137,8 @@ export function Accueil() {
         </span>
         <ArrowRight size={18} className="shrink-0 text-accent-clair" aria-hidden />
       </Link>
+
+      <ProgressionImport discret />
 
       <CompteARebours />
 

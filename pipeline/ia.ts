@@ -59,8 +59,13 @@ export class QuotaAtteint extends Error {
 /** Au-delà de cette taille, les pièces passent par l'API de fichiers. */
 const TAILLE_EN_LIGNE_MAX = 12_000_000;
 const ESSAIS = 4;
-/** Écart minimal entre deux requêtes en mode gratuit (≈ 7 requêtes par minute). */
-const ECART_GRATUIT_MS = 8500;
+/**
+ * Écart entre deux requêtes en mode gratuit. On démarre vite (≈ 12 par minute) et
+ * on ralentit tout seul dès que Google refuse pour cause de limite par minute ;
+ * après une série de requêtes sans refus, on réaccélère.
+ */
+const ECART_MIN_MS = 5000;
+const ECART_MAX_MS = 12_000;
 
 export { choisirModele };
 
@@ -135,6 +140,8 @@ export async function iaGemini(options: {
       };
   const compteur = new Compteur();
   let dernierAppel = 0;
+  let ecart = ECART_MIN_MS;
+  let calmes = 0;
 
   const enParties = async (pieces: Piece[]): Promise<{ parties: Part[]; aSupprimer: string[] }> => {
     const parties: Part[] = [];
@@ -165,7 +172,7 @@ export async function iaGemini(options: {
       if (compteur.total >= options.plafondUsd) throw new PlafondAtteint(compteur.total);
       if (gratuit) {
         // Le palier gratuit limite le nombre de requêtes par minute.
-        const attente = dernierAppel + ECART_GRATUIT_MS - Date.now();
+        const attente = dernierAppel + ecart - Date.now();
         if (attente > 0) await new Promise((r) => setTimeout(r, attente));
         dernierAppel = Date.now();
       }
@@ -194,6 +201,10 @@ export async function iaGemini(options: {
               // Les tokens de réflexion sont facturés comme des tokens écrits.
               (usage?.candidatesTokenCount ?? 0) + (usage?.thoughtsTokenCount ?? 0),
             );
+            if (++calmes >= 25 && ecart > ECART_MIN_MS) {
+              ecart = Math.max(ECART_MIN_MS, ecart - 500);
+              calmes = 0;
+            }
             journal(`IA ${demande.etape} : ${prix.toFixed(4)} $ (total ${compteur.total.toFixed(2)} $)`);
             return decoderJson(reponse.text ?? '');
           } catch (erreur) {
@@ -206,6 +217,8 @@ export async function iaGemini(options: {
               const delai = info.delaiMs ?? 35_000;
               if (!info.quotidien && delai <= ATTENTE_429_MAX_MS && attentes429 < (info.delaiMs ? ATTENTES_429_MAX : 2)) {
                 attentes429 += 1;
+                ecart = Math.min(ECART_MAX_MS, ecart + 1500);
+                calmes = 0;
                 journal(`Limite par minute (${info.quota ?? 'quota non précisé'}) : attente de ${Math.round(delai / 1000)} s`);
                 await new Promise((r) => setTimeout(r, delai));
                 essai -= 1;

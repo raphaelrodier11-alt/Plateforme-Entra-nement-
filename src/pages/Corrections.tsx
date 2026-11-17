@@ -18,6 +18,7 @@ import {
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Anomalie, Estimation, EtatPipeline, Tache, TypeAnomalie } from '../../shared/types';
+import { ProgressionImport } from '../composants/ProgressionImport';
 import { Bouton, Carte, EtatVide, Pastille, TitrePage, nombre } from '../composants/ui';
 import { ecrireLocal, enregistrerPlusieurs } from '../db/sync';
 import { useDonnees } from '../etat/donnees';
@@ -227,6 +228,9 @@ export function Corrections() {
         sousTitre="Changements du drive, corrections proposées et journal de tes décisions."
       />
 
+      <div className="mb-4">
+        <ProgressionImport />
+      </div>
       <Carte titre="Import du drive">
         <p className="flex items-center gap-2 text-sm">
           <RefreshCw size={16} className="text-muet" aria-hidden />

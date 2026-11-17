@@ -290,7 +290,7 @@ export function nbQuestionsReserve(cible: number): number {
 
 /** Tokens comptés pour une page envoyée sous forme d'image. */
 const TOKENS_PAGE_IMAGE = 700;
-const QUESTIONS_PAR_LOT = 12;
+const QUESTIONS_PAR_LOT = 16;
 
 export function estimer(
   c: Contexte,

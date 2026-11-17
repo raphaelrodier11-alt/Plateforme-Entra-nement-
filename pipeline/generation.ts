@@ -60,7 +60,7 @@ import {
   type QuestionBrute,
 } from './validation';
 
-const QUESTIONS_PAR_LOT = 12;
+const QUESTIONS_PAR_LOT = 16;
 const CARACTERES_PAR_EXTRACTION = 55_000;
 const TAILLE_PIECES_MAX = 30_000_000;
 

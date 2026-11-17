@@ -29,7 +29,8 @@ jobs:
   passage:
     name: Passage du pipeline
     runs-on: ubuntu-latest
-    timeout-minutes: 80
+    # Un passage peut durer plusieurs heures : le palier gratuit limite le débit, pas le calcul.
+    timeout-minutes: 340
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -66,7 +67,7 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PIPELINE_MODE: ${{ inputs.mode || 'auto' }}
-          PIPELINE_BUDGET_MIN: '50'
+          PIPELINE_BUDGET_MIN: '320'
         run: npm run pipeline
 
       # GitHub suspend les tâches planifiées d'un dépôt resté 60 jours sans
