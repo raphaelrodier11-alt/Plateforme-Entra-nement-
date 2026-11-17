@@ -58,6 +58,29 @@ jobs:
           ./scripts/contexte-actions.sh
           node scripts/config-deploiement.cjs
 
+      - name: Enregistrer l'adresse workers.dev du compte (première fois seulement)
+        if: steps.config.outputs.pret == 'oui'
+        run: |
+          api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain"
+          actuel=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api" |
+            node -e 'try { const r = JSON.parse(require("fs").readFileSync(0, "utf8")); process.stdout.write((r.result && r.result.subdomain) || ""); } catch { }')
+          if [ -n "$actuel" ]; then
+            echo "Adresse workers.dev déjà enregistrée."
+            exit 0
+          fi
+          # Nom dérivé du compte, sans le révéler : le journal est public.
+          nom="rodier-$(printf '%s' "$CLOUDFLARE_ACCOUNT_ID" | sha256sum | cut -c1-8)"
+          code=$(curl -sS -o reponse.json -w '%{http_code}' -X PUT \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "{\"subdomain\":\"$nom\"}" "$api")
+          rm -f reponse.json
+          if [ "$code" != "200" ]; then
+            echo "::error::Impossible d'enregistrer l'adresse workers.dev (HTTP $code). Voir le README."
+            exit 1
+          fi
+          echo "Adresse workers.dev enregistrée."
+
       - name: Déployer sur Cloudflare
         if: steps.config.outputs.pret == 'oui'
         run: |
