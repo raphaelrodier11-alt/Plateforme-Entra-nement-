@@ -253,6 +253,14 @@ question, classement, erratum affiché sur le chapitre). Validées ou refusées,
 les décisions restent dans le journal de la page Mises à jour. Une correction refusée
 n'est pas reproposée.
 
+## Rangement par matière
+
+À l'import, la matière d'un fichier vient du **dossier du Drive** (`SEMESTRE n / MATIÈRE / fichiers`) : c'est fiable et sans IA, et l'IA ne peut plus la changer. Elle ne décide que pour les fichiers sans dossier de matière (à la racine, ou dans un dossier « vrac »). Les cours, annales et anciennes versions d'une même matière se retrouvent ensemble, et la page Cours les regroupe par semestre. Pour un dossier envoyé depuis l'appli, la matière n'est imposée que si le chemin contient un dossier « SEMESTRE n ».
+
+## Suggestions de documents
+
+L'accueil et chaque chapitre proposent des documents d'aide (QCM ciblés après des erreurs, « ce qui a changé » après une actualisation, synthèse avant un partiel, flashcards pour un nouveau chapitre, résumé d'une page pour un chapitre qui pèse lourd). Elles sont calculées dans l'appli, sans IA ni quota ; l'IA ne travaille qu'au clic sur « Créer ».
+
 ## Assistant « Dr Rodier »
 
 Un petit médecin virtuel, accessible depuis l'onglet **Dr Rodier** :

@@ -37,6 +37,8 @@ export function Cours() {
   }
 
   const cherche = recherche.trim().toLowerCase();
+  // Dernier semestre affiché : l'en-tête n'apparaît que devant une matière visible.
+  const dernier: { semestre?: number } = {};
 
   return (
     <div>
@@ -67,7 +69,9 @@ export function Cours() {
       </div>
 
       <div className="space-y-7">
-        {d.matieres.map((m) => {
+        {[...d.matieres]
+          .sort((a, b) => (a.semestre ?? 99) - (b.semestre ?? 99) || a.ordre - b.ordre)
+          .map((m) => {
           const chapitres = (d.chapitresParMatiere.get(m.id) ?? []).filter((c) => {
             const s = d.stats.get(c.id);
             if (filtre && s?.statut !== filtre) return false;
@@ -77,8 +81,15 @@ export function Cours() {
           const sm = d.statsMatiere.get(m.id);
           const prediction = d.predictions.get(m.id);
           const couleur = couleurMatiere(m.id);
+          const nouveauSemestre = m.semestre !== undefined && m.semestre !== dernier.semestre;
+          if (m.semestre !== undefined) dernier.semestre = m.semestre;
           return (
             <section key={m.id} id={m.id} className="scroll-mt-4">
+              {nouveauSemestre && (
+                <h2 className="mb-4 border-b border-bord pb-2 text-xs font-semibold tracking-widest text-muet uppercase">
+                  Semestre {m.semestre}
+                </h2>
+              )}
               <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
                 <div className="flex items-start gap-3">
                   <span aria-hidden className="mt-1 h-9 w-1.5 shrink-0 rounded-full" style={{ background: couleur.accent }} />

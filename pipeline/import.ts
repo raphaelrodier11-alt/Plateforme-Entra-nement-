@@ -28,9 +28,11 @@ import {
   type Contexte,
   estArret,
 } from './contexte';
+import { matiereDepuisChemin } from '../shared/matieres';
+import { estFichierDepot } from './depot';
 import type { FichierDrive } from './drive';
 import { natureDe, texteSuspect } from './extraction';
-import { erreurPublique, journal } from './journal';
+import { causeProbable, erreurPublique, journal } from './journal';
 import { SYSTEME, consigneLecture, consigneStructure, type LigneFichier } from './prompts';
 import { decouperTexte } from './stockage';
 import {
@@ -264,7 +266,7 @@ export async function lireFichiers(c: Contexte): Promise<{ lus: number; echecs: 
       lus += 1;
     } catch (erreur) {
       echecs += 1;
-      journal(`Lecture impossible d'un fichier : ${erreurPublique(erreur)}`);
+      journal(`Lecture impossible d'un fichier (${fichier.mimeType}) : ${causeProbable(erreur)}`);
       await c.memoire.ecrire<Fichier>('fichiers', { ...fichier, echecs: (fichier.echecs ?? 0) + 1 });
     }
   }
@@ -503,6 +505,23 @@ export async function structurer(c: Contexte): Promise<void> {
     // Les anciennes versions passent en dernier : les chapitres actuels existent alors déjà.
     .sort((a, b) => Number(a.role === 'ancien') - Number(b.role === 'ancien'));
 
+  // Matière imposée par le dossier du Drive (« SEMESTRE n / MATIÈRE / … ») : créée
+  // d'avance, et l'IA ne peut plus la changer.
+  const imposees = new Map<string, string>();
+  for (const f of aClasser) {
+    const dossier = matiereDepuisChemin(f.chemin, estFichierDepot(f.id));
+    if (!dossier) continue;
+    const id = `m-${slug(dossier.nom)}`;
+    const existante = c.memoire.lire<Matiere>('matieres', id);
+    if (!existante) {
+      const ordre = Math.max(0, ...c.memoire.liste<Matiere>('matieres').map((m) => m.ordre)) + 1;
+      await c.memoire.ecrire<Matiere>('matieres', { id, nom: dossier.nom, ordre, ...(dossier.semestre ? { semestre: dossier.semestre } : {}) });
+    } else if (dossier.semestre && !existante.semestre) {
+      await c.memoire.ecrire<Matiere>('matieres', { ...existante, semestre: dossier.semestre });
+    }
+    imposees.set(f.id, id);
+  }
+
   for (const lot of enLots(aClasser, FICHIERS_PAR_CLASSEMENT)) {
     if (tempsEcoule(c)) break;
     const refs = new Map(lot.map((f, i) => [`f${i + 1}`, f]));
@@ -511,6 +530,7 @@ export async function structurer(c: Contexte): Promise<void> {
       dossier: f.role === 'cours' ? 'cours' : f.role === 'ancien' ? 'anciens' : 'annales',
       chemin: f.chemin,
       debut: texteDe(c, f.id)?.pages.find((p) => p.texte)?.texte ?? '',
+      matiereImposee: imposees.get(f.id),
     }));
     const matieres = c.memoire.liste<Matiere>('matieres');
     const chapitres = c.memoire.liste<Chapitre>('chapitres');
@@ -528,7 +548,9 @@ export async function structurer(c: Contexte): Promise<void> {
     // Matières : identifiant existant, ou création à partir de la référence proposée.
     const idMatiere = new Map<string, string>(matieres.map((m) => [m.id, m.id]));
     let ordre = Math.max(0, ...matieres.map((m) => m.ordre));
-    for (const m of (Array.isArray(reponse.matieres) ? reponse.matieres : []).map(objet)) {
+    // Quand tous les fichiers du lot ont leur matière imposée par le dossier, l'IA n'en crée pas d'autre.
+    const lotImpose = lot.every((f) => imposees.has(f.id));
+    for (const m of (lotImpose ? [] : Array.isArray(reponse.matieres) ? reponse.matieres : []).map(objet)) {
       const nom = chaine(m.nom);
       if (!chaine(m.ref) || !nom) continue;
       const id = `m-${slug(nom)}`;
@@ -567,13 +589,15 @@ export async function structurer(c: Contexte): Promise<void> {
       if (!chaine(x.ref) || !matiereId || !titre) continue;
       chapitresProposes.set(chaine(x.ref), { matiereId, titre });
     }
-    const chapitreDuCours = async (ref: string): Promise<string | undefined> => {
+    const chapitreDuCours = async (ref: string, imposee?: string): Promise<string | undefined> => {
       const connu = idChapitre.get(ref);
-      if (connu) return connu;
+      const chapitreConnu = connu ? c.memoire.lire<Chapitre>('chapitres', connu) : undefined;
+      // Un chapitre d'une autre matière que celle du dossier n'est jamais réutilisé.
+      if (connu && (!imposee || chapitreConnu?.matiereId === imposee)) return connu;
       const propose = chapitresProposes.get(ref);
       if (!propose) return undefined;
-      const id = await creerChapitre(propose.matiereId, propose.titre);
-      idChapitre.set(ref, id);
+      const id = await creerChapitre(imposee ?? propose.matiereId, propose.titre);
+      if (!imposee) idChapitre.set(ref, id);
       return id;
     };
 
@@ -592,8 +616,11 @@ export async function structurer(c: Contexte): Promise<void> {
       if (role === 'ancien') {
         const ref = chaine(f.chapitre);
         const chapitreId = idChapitre.get(ref);
-        const chapitre = chapitreId ? c.memoire.lire<Chapitre>('chapitres', chapitreId) : undefined;
-        const matiereAncien = chapitre?.matiereId ?? idMatiere.get(chaine(f.matiere));
+        const trouve = chapitreId ? c.memoire.lire<Chapitre>('chapitres', chapitreId) : undefined;
+        const imposeeAncien = imposees.get(fichier.id);
+        // Un chapitre d'une autre matière que celle du dossier n'est pas rattaché.
+        const chapitre = trouve && (!imposeeAncien || trouve.matiereId === imposeeAncien) ? trouve : undefined;
+        const matiereAncien = chapitre?.matiereId ?? imposeeAncien ?? idMatiere.get(chaine(f.matiere));
         if (!matiereAncien) continue;
         classes.add(fichier.id);
         await c.memoire.ecrire<Fichier>('fichiers', {
@@ -608,12 +635,13 @@ export async function structurer(c: Contexte): Promise<void> {
         await c.memoire.ecrire<Fichier>('fichiers', { ...fichier, role, etat: 'a_jour', versionTraitee: fichier.modifieLe });
         continue;
       }
-      const matiereId = idMatiere.get(chaine(f.matiere));
+      const imposee = imposees.get(fichier.id);
+      const matiereId = imposee ?? idMatiere.get(chaine(f.matiere));
       if (!matiereId) continue;
       classes.add(fichier.id);
 
       if (role === 'cours') {
-        const chapitreId = (await chapitreDuCours(chaine(f.chapitre))) ?? (await creerChapitre(matiereId, titreDepuisNom(fichier.nom)));
+        const chapitreId = (await chapitreDuCours(chaine(f.chapitre), imposee)) ?? (await creerChapitre(matiereId, titreDepuisNom(fichier.nom)));
         const chapitre = c.memoire.lire<Chapitre>('chapitres', chapitreId)!;
         await c.memoire.ecrire<Chapitre>('chapitres', {
           ...chapitre,

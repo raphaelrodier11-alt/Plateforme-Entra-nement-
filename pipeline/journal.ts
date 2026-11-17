@@ -18,6 +18,23 @@ export function erreurPublique(erreur: unknown): string {
   return 'erreur inconnue';
 }
 
+/**
+ * Cause probable d'une erreur, pour le diagnostic : le message nettoyé (sans
+ * guillemets, chemins ni longues suites qui pourraient contenir un nom de
+ * fichier ou un texte de cours), limité à 90 caractères.
+ */
+export function causeProbable(erreur: unknown): string {
+  const base = erreurPublique(erreur);
+  if (!(erreur instanceof Error) || !erreur.message) return base;
+  const net = erreur.message
+    .replace(/["'«»“”].*?["'«»“”]/g, '…')
+    .replace(/(?:[A-Za-z]:)?[\/][^\s]+/g, '<chemin>')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 90);
+  return net ? `${base} — ${net}` : base;
+}
+
 /** Message complet, destiné à l'application (privée), jamais au journal public. */
 export function erreurPrivee(erreur: unknown): string {
   return erreur instanceof Error ? erreur.message.slice(0, 400) : String(erreur).slice(0, 400);

@@ -22,6 +22,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { cleJour, jourLisible } from '../../shared/dates';
 import { estIncontournable, nbPartiels } from '../../shared/marqueurs';
 import type { Actualisation, BlocFiche, Changement } from '../../shared/types';
+import { Suggestions } from '../composants/Suggestions';
 import {
   Bouton,
   EtatVide,
@@ -258,6 +259,10 @@ export function PageChapitre() {
           </ul>
         </section>
       )}
+
+      <div className="mb-4">
+        <Suggestions chapitreId={chapitre.id} max={2} titre="Le Dr Rodier te propose" />
+      </div>
 
       <div className="mb-4">
         <Onglets

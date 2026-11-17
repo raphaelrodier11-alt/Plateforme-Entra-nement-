@@ -18,7 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { LIBELLE_TYPE_DOCUMENT } from '../../shared/assistant';
 import type { Conversation, DemandeDocument, DocumentBiblio, TypeDocument } from '../../shared/types';
 import { Docteur } from '../composants/Docteur';
@@ -43,7 +43,9 @@ const dateCourte = (t: number) =>
   new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 export function Assistant() {
-  const [vue, setVue] = useState<Vue>('discuter');
+  const [params] = useSearchParams();
+  const vueDemandee = params.get('vue');
+  const [vue, setVue] = useState<Vue>(vueDemandee === 'biblio' || vueDemandee === 'creer' ? vueDemandee : 'discuter');
   const [disponible, setDisponible] = useState<boolean | undefined>();
   const demandes = useLiveQuery(() => base.collection<DemandeDocument>('demandes').toArray(), []) ?? [];
   const enAttente = demandes.filter((d) => d.statut === 'en_attente' || d.statut === 'en_cours').length;
@@ -468,8 +470,11 @@ function Bibliotheque() {
   const demandes = useLiveQuery(() => base.collection<DemandeDocument>('demandes').toArray(), []) ?? [];
   const [ouvert, setOuvert] = useState<string | undefined>();
   const [copie, setCopie] = useState(false);
+  const [filtreMatiere, setFiltreMatiere] = useState<string | undefined>();
 
-  const tries = [...documents].sort((a, b) => b.creeLe - a.creeLe);
+  const tries = [...documents]
+    .filter((x) => !filtreMatiere || x.matiereId === filtreMatiere)
+    .sort((a, b) => b.creeLe - a.creeLe);
   const doc = tries.find((x) => x.id === ouvert);
   const enCours = demandes.filter((x) => x.statut !== 'terminee').sort((a, b) => b.creeLe - a.creeLe);
 
@@ -531,6 +536,7 @@ function Bibliotheque() {
 
   return (
     <div className="space-y-3">
+      {documents.length > 0 && <ChoixMatiere valeur={filtreMatiere} onChange={setFiltreMatiere} tout="Toutes les matières" />}
       {enCours.length > 0 && (
         <Carte titre="Demandes en préparation">
           <ul className="space-y-2">

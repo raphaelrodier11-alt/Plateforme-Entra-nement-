@@ -23,6 +23,7 @@ import { useDonnees } from '../etat/donnees';
 import { Anneau, Tuile } from '../graphiques/Graphiques';
 import { LIBELLE_TACHE, lancerRevisionErreurs, lancerTache } from '../lib/actions';
 import { Docteur } from '../composants/Docteur';
+import { Suggestions } from '../composants/Suggestions';
 import { chargerDemo } from '../demo/charger';
 
 function cibleRecommandation(r: Recommandation): string {
@@ -120,6 +121,8 @@ export function Accueil() {
         </span>
         <ArrowRight size={18} className="shrink-0 text-accent-clair" aria-hidden />
       </Link>
+
+      <Suggestions />
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Chiffre principal : avancement global */}

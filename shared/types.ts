@@ -17,6 +17,8 @@ export interface Matiere {
   ordre: number;
   /** Format habituel des partiels de la matière, déduit des annales. */
   formatPartiel?: FormatPartiel;
+  /** Semestre, quand le dossier du Drive l'indique. */
+  semestre?: number;
   demo?: boolean;
 }
 

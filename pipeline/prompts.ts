@@ -35,6 +35,8 @@ export interface LigneFichier {
   dossier: 'cours' | 'annales' | 'anciens';
   chemin: string;
   debut: string;
+  /** Matière imposée par le dossier du Drive (identifiant) : l'IA ne la change pas. */
+  matiereImposee?: string;
 }
 
 export function consigneStructure(
@@ -51,9 +53,10 @@ Chapitres déjà connus (réutilise leur identifiant quand c'est le même chapit
 ${chapitres.map((c) => `- ${c.id} (matière ${c.matiereId}) : ${c.titre}`).join('\n') || '(aucun)'}
 
 Fichiers à classer (référence | dossier d'origine | chemin | début du texte) :
-${fichiers.map((f) => `${f.ref} | ${f.dossier} | ${f.chemin} | ${f.debut.replace(/\s+/g, ' ').slice(0, 220)}`).join('\n')}
+${fichiers.map((f) => `${f.ref} | ${f.dossier} | ${f.chemin}${f.matiereImposee ? ` | MATIÈRE IMPOSÉE : ${f.matiereImposee}` : ''} | ${f.debut.replace(/\s+/g, ' ').slice(0, 220)}`).join('\n')}
 
 Règles :
+- Quand une ligne indique « MATIÈRE IMPOSÉE : identifiant », le dossier du Drive fait foi : utilise exactement cette matière, sans en proposer d'autre. Ton travail pour ce fichier est alors le chapitre (et, pour une annale, le partiel).
 - Une matière correspond à une unité d'enseignement ou à une discipline (exemple : « Appareil cardiovasculaire »). Un chapitre correspond à un cours.
 - Appuie-toi sur les noms de dossiers et de fichiers, puis sur le début du texte. Plusieurs fichiers peuvent appartenir au même chapitre (diaporama et polycopié du même cours).
 - Rôle "cours" : support de cours (dossier "cours" seulement). Rôle "annale" : sujet de partiel (avec ou sans corrigé intégré). Rôle "corrige" : corrigé seul d'un partiel. Rôle "autre" : ni l'un ni l'autre (planning, consignes…).
