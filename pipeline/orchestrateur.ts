@@ -304,6 +304,7 @@ export async function executer(d: Dependances): Promise<Issue> {
     }
 
     let arret: 'plafond' | 'quota' | undefined;
+    let quotaDuJour = false;
     try {
       await lireScans(contexte);
       await structurer(contexte);
@@ -324,11 +325,19 @@ export async function executer(d: Dependances): Promise<Issue> {
     } catch (erreur) {
       if (!estArret(erreur)) throw erreur;
       arret = (erreur as Error).name === 'QuotaAtteint' ? 'quota' : 'plafond';
+      quotaDuJour = (erreur as { quotidien?: boolean }).quotidien === true;
     } finally {
+      // Jour du quota Gemini : minuit heure du Pacifique (≈ 9 h à Paris).
+      const jourQuota = new Date(maintenant).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+      const avant = lireEtat().requetesIa;
+      const n = (avant?.jour === jourQuota ? avant.n : 0) + (ia.requetes ?? 0);
       await majEtat({
         depense: { mois, usd: Math.round((dejaDepense + ia.compteur.total) * 100) / 100 },
         modeles: ia.modeles,
+        requetesIa: { jour: jourQuota, n },
+        ...(quotaDuJour ? { limiteJour: { jour: jourQuota, n } } : {}),
       });
+      journal(`Requêtes Gemini aujourd'hui : ${n}${quotaDuJour ? ' (limite du jour atteinte)' : ''}`);
       journal(`Dépense de ce passage : ${ia.compteur.total.toFixed(2)} $`);
     }
 
@@ -336,7 +345,9 @@ export async function executer(d: Dependances): Promise<Issue> {
       journal('Limite du palier gratuit atteinte : reprise au prochain passage');
       await majEtat({
         statut: 'en_cours',
-        message: 'Limite gratuite de Gemini atteinte : le traitement reprend tout seul au prochain passage. Rien n’est dépensé.',
+        message: quotaDuJour
+          ? 'Limite gratuite du jour de Gemini atteinte : le traitement reprend tout seul demain (vers 9 h, heure de Paris). Rien n’est dépensé.'
+          : 'Limite gratuite de Gemini atteinte : le traitement reprend tout seul au prochain passage. Rien n’est dépensé.',
         ...compter(),
       });
       return 'quota';

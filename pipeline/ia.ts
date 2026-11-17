@@ -11,7 +11,7 @@
  * consommation est comptée et un plafond de dépense arrête le traitement.
  */
 import { GoogleGenAI, type Part } from '@google/genai';
-import { choisirModele } from '../shared/modeles';
+import { choisirModele, modelesGratuits } from '../shared/modeles';
 import type { TarifModele } from '../shared/types';
 import { journal } from './journal';
 import { Compteur, tarifPour, type Niveau } from './tarifs';
@@ -37,6 +37,8 @@ export interface Ia {
   readonly modeles: Record<Niveau, string>;
   readonly tarifs: Record<Niveau, TarifModele>;
   readonly compteur: Compteur;
+  /** Requêtes envoyées à Gemini pendant ce passage. */
+  readonly requetes?: number;
 }
 
 export class PlafondAtteint extends Error {
@@ -48,7 +50,7 @@ export class PlafondAtteint extends Error {
 
 /** La limite du palier gratuit (ou un quota) est atteinte : le travail reprendra plus tard. */
 export class QuotaAtteint extends Error {
-  constructor() {
+  constructor(readonly quotidien = false) {
     super('Limite de requêtes atteinte');
     this.name = 'QuotaAtteint';
   }
@@ -110,6 +112,10 @@ export async function iaGemini(options: {
     if (modele.name && (modele.supportedActions ?? []).includes('generateContent')) noms.push(modele.name);
   }
   const masse = options.modeleMasse || choisirModele(noms, 'flash') || '';
+  // Mode gratuit : liste de secours, chaque modèle ayant son propre quota quotidien.
+  const candidats = gratuit && !options.modeleMasse ? modelesGratuits(noms) : [masse];
+  let rang = 0;
+  let envoyees = 0;
   // Les modèles « Pro » ne sont pas gratuits : en mode gratuit, un seul modèle sert à tout.
   const modeles: Record<Niveau, string> = {
     masse,
@@ -152,6 +158,9 @@ export async function iaGemini(options: {
     modeles,
     tarifs,
     compteur,
+    get requetes() {
+      return envoyees;
+    },
     async json(demande) {
       if (compteur.total >= options.plafondUsd) throw new PlafondAtteint(compteur.total);
       if (gratuit) {
@@ -166,8 +175,9 @@ export async function iaGemini(options: {
         let attentes429 = 0;
         for (let essai = 1; ; essai++) {
           try {
+            envoyees += 1;
             const reponse = await client.models.generateContent({
-              model: modeles[demande.niveau],
+              model: gratuit ? (candidats[rang] ?? masse) : modeles[demande.niveau],
               contents: [{ role: 'user', parts: [...parties, { text: demande.consigne + rappel }] }],
               config: {
                 systemInstruction: demande.systeme,
@@ -201,8 +211,15 @@ export async function iaGemini(options: {
                 essai -= 1;
                 continue;
               }
+              if (info.quotidien && gratuit && rang + 1 < candidats.length) {
+                // Limite du jour de ce modèle : on essaie le modèle gratuit suivant, qui a son propre quota.
+                journal(`Limite du jour atteinte pour ${candidats[rang]} : bascule sur ${candidats[rang + 1]}`);
+                rang += 1;
+                essai -= 1;
+                continue;
+              }
               journal(`Limite atteinte (${info.quota ?? 'quota non précisé'}${info.quotidien ? ', quotidienne' : ''}) : reprise au prochain passage`);
-              throw new QuotaAtteint();
+              throw new QuotaAtteint(info.quotidien);
             }
             if (!reessayable || essai >= ESSAIS) throw erreur;
             if (erreur instanceof SyntaxError) {

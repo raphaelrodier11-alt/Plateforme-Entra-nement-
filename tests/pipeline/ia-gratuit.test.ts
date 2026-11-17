@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const appels: string[] = [];
-let reponse: () => unknown = () => ({ text: '{"ok":true}', usageMetadata: { promptTokenCount: 1_000_000, candidatesTokenCount: 1_000_000 } });
+let reponse: (modele?: string) => unknown = () => ({ text: '{"ok":true}', usageMetadata: { promptTokenCount: 1_000_000, candidatesTokenCount: 1_000_000 } });
 
 vi.mock('@google/genai', () => ({
   GoogleGenAI: class {
@@ -9,12 +9,14 @@ vi.mock('@google/genai', () => ({
       list: async () =>
         (async function* () {
           yield { name: 'models/gemini-3.8-flash', supportedActions: ['generateContent'] };
+          yield { name: 'models/gemini-3.8-flash-lite', supportedActions: ['generateContent'] };
+          yield { name: 'models/gemini-3.5-flash', supportedActions: ['generateContent'] };
           yield { name: 'models/gemini-3.5-pro', supportedActions: ['generateContent'] };
           yield { name: 'models/gemini-embedding-001', supportedActions: ['embedContent'] };
         })(),
       generateContent: async ({ model }: { model: string }) => {
         appels.push(model);
-        return reponse();
+        return reponse(model);
       },
     };
     files = {};
@@ -73,15 +75,35 @@ describe('couche Gemini en mode gratuit', () => {
     expect(analyser429(e429('quota'))).toEqual({ quotidien: false, quota: undefined });
   });
 
-  it("s'arrête tout de suite sur une limite du jour", async () => {
+  it('bascule sur un autre modèle gratuit quand la limite du jour est atteinte', async () => {
+    reponse = (modele) => {
+      if (modele === 'gemini-3.8-flash') throw e429(MESSAGE_JOUR);
+      return { text: '{"ok":true}', usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 10 } };
+    };
+    const ia = await iaGemini({ cle: 'k', plafondUsd: 100, gratuit: true });
+    const suite = ia.json(demande('masse'));
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(await suite).toEqual({ ok: true });
+    expect(appels).toEqual(['gemini-3.8-flash', 'gemini-3.8-flash-lite']);
+    expect(ia.requetes).toBe(2);
+    // Les requêtes suivantes restent sur le modèle qui fonctionne.
+    const suivante = ia.json(demande('masse'));
+    await vi.advanceTimersByTimeAsync(10_000);
+    await suivante;
+    expect(appels.at(-1)).toBe('gemini-3.8-flash-lite');
+  });
+
+  it("s'arrête quand tous les modèles gratuits ont atteint leur limite du jour", async () => {
     reponse = () => {
       throw e429(MESSAGE_JOUR);
     };
     const ia = await iaGemini({ cle: 'k', plafondUsd: 100, gratuit: true });
     const echec = ia.json(demande('masse')).catch((e: unknown) => e);
     await vi.advanceTimersByTimeAsync(10_000);
-    expect(await echec).toBeInstanceOf(QuotaAtteint);
-    expect(appels).toHaveLength(1);
+    const erreur = await echec;
+    expect(erreur).toBeInstanceOf(QuotaAtteint);
+    expect((erreur as { quotidien: boolean }).quotidien).toBe(true);
+    expect(appels).toEqual(['gemini-3.8-flash', 'gemini-3.8-flash-lite', 'gemini-3.5-flash']);
   });
 
   it('attend le délai indiqué sur une limite par minute, puis réussit', async () => {

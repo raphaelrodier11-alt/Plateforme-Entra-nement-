@@ -415,6 +415,10 @@ export interface EtatPipeline {
   /** Dépense d'IA cumulée sur le mois en cours (AAAA-MM), en dollars. */
   depense?: { mois: string; usd: number };
   modeles?: { masse: string; expert: string };
+  /** Requêtes Gemini envoyées dans la journée (jour du quota : heure du Pacifique). */
+  requetesIa?: { jour: string; n: number };
+  /** Nombre de requêtes quand la limite quotidienne a été atteinte (mesure de la vraie limite). */
+  limiteJour?: { jour: string; n: number };
 }
 
 // ---------------------------------------------------------------------------
