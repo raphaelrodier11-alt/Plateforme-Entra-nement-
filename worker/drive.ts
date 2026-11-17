@@ -127,7 +127,13 @@ export async function jetonAcces(
       grant_type: 'refresh_token',
     }),
   });
-  if (!reponse.ok) return undefined;
+  if (!reponse.ok) {
+    // Jeton expiré ou révoqué (en mode « Test », Google l'invalide après 7 jours) :
+    // on l'oublie pour que les Réglages proposent de se reconnecter.
+    const erreur = (await reponse.json().catch(() => ({}))) as { error?: string };
+    if (erreur.error === 'invalid_grant') await supprimerMeta(env.DB, META_JETON);
+    return undefined;
+  }
   return (await reponse.json()) as { access_token: string; expires_in: number };
 }
 
