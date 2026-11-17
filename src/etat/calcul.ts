@@ -19,6 +19,7 @@ import { recommander, type Recommandation } from '../../shared/recommandations';
 import { etatsRepetition, type EtatRepetition } from '../../shared/repetition';
 import {
   REGLAGES_DEFAUT,
+  type Actualisation,
   type Anomalie,
   type CasClinique,
   type Chapitre,
@@ -54,6 +55,7 @@ export interface Brut {
   partiels: Partiel[];
   fichiers: Fichier[];
   depots: Depot[];
+  actualisations: Actualisation[];
   anomalies: Anomalie[];
   illisibles: PassageIllisible[];
   notifications: NotificationApp[];
@@ -85,6 +87,8 @@ export interface Donnees extends Omit<Brut, 'reglages' | 'etat'> {
   ficheParChapitre: Map<string, Fiche>;
   questionsParChapitre: Map<string, Question[]>;
   chapitresParMatiere: Map<string, Chapitre[]>;
+  /** Comparaisons avec les versions plus anciennes, par chapitre (celles qui montrent des changements d'abord). */
+  actualisationsParChapitre: Map<string, Actualisation[]>;
 
   etats: Map<string, EtatQuestion>;
   repetitions: Map<string, EtatRepetition>;
@@ -238,6 +242,10 @@ export function calculer(brut: Brut, maintenant: number): Donnees {
     ficheParChapitre: new Map(brut.fiches.map((f) => [f.chapitreId, f])),
     questionsParChapitre: grouper(brut.questions, (q) => q.chapitreId),
     chapitresParMatiere: grouper(chapitres, (c) => c.matiereId),
+    actualisationsParChapitre: grouper(
+      [...brut.actualisations].sort((a, b) => b.changements.length - a.changements.length),
+      (a) => a.chapitreId,
+    ),
 
     etats,
     repetitions,

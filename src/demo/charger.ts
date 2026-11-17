@@ -25,7 +25,7 @@ import type {
 } from '../../shared/types';
 import { base, ecrireMeta, lireMeta } from '../db/base';
 import { ecrireLocal, supprimer } from '../db/sync';
-import { CAS, CHAPITRES, FICHES, FLASHCARDS, IDS, MATIERES, PARTIELS, QUESTIONS } from './contenu';
+import { ACTUALISATIONS, CAS, CHAPITRES, FICHES, FLASHCARDS, IDS, MATIERES, PARTIELS, QUESTIONS } from './contenu';
 
 const PREFIXE = 'demo-';
 const META_DISPOS = 'demo:disponibilites';
@@ -282,6 +282,7 @@ export async function chargerDemo(): Promise<void> {
   await ecrireLocal('questions', QUESTIONS);
   await ecrireLocal('fiches', FICHES.map((f) => ({ ...f, genereLe: maintenant })));
   await ecrireLocal('flashcards', FLASHCARDS);
+  await ecrireLocal('actualisations', ACTUALISATIONS.map((a) => ({ ...a, comparesLe: maintenant - 3 * JOUR_MS })));
   await ecrireLocal('fichiers', [fichier]);
   await ecrireLocal('anomalies', anomalies);
   await ecrireLocal('illisibles', illisibles);

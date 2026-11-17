@@ -13,6 +13,8 @@ import {
 import type { Role } from './env';
 
 export const LIMITE_TIRAGE = 400;
+/** Taille maximale d'une réponse de synchronisation, en caractères. */
+export const BUDGET_REPONSE = 8_000_000;
 export const LIMITE_POUSSEE = 200;
 
 interface Ligne {
@@ -44,17 +46,38 @@ export async function tirer(
   const marqueurs = autorisees.map((_, i) => `?${i + 3}`).join(', ');
   const max = Math.min(Math.max(limite, 1), LIMITE_TIRAGE);
 
+  // Une réponse ne dépasse pas ~8 Mo : les textes de cours sont volumineux et
+  // le serveur n'a que 128 Mo de mémoire. Le premier document est toujours
+  // renvoyé, même s'il est seul au-dessus du budget.
+  const indiceBudget = autorisees.length + 3;
   const { results } = await db
     .prepare(
-      `SELECT collection, id, data, updated_at, deleted, rev FROM docs
-       WHERE rev > ?1 AND collection IN (${marqueurs})
-       ORDER BY rev LIMIT ?2`,
+      `SELECT collection, id, data, updated_at, deleted, rev FROM (
+         SELECT collection, id, data, updated_at, deleted, rev,
+                SUM(LENGTH(data)) OVER (ORDER BY rev) AS cumul
+         FROM docs
+         WHERE rev > ?1 AND collection IN (${marqueurs})
+         ORDER BY rev LIMIT ?2
+       )
+       WHERE cumul - LENGTH(data) < ?${indiceBudget}
+       ORDER BY rev`,
     )
-    .bind(depuis, max + 1, ...autorisees)
+    .bind(depuis, max + 1, ...autorisees, BUDGET_REPONSE)
     .all<Ligne>();
 
-  const encore = results.length > max;
+  let encore = results.length > max;
   const lignes = encore ? results.slice(0, max) : results;
+  if (!encore && lignes.length > 0) {
+    // Le budget a pu couper la liste : y a-t-il des documents après le dernier renvoyé ?
+    const octets = lignes.reduce((somme, l) => somme + l.data.length, 0);
+    if (octets >= BUDGET_REPONSE) {
+      const suite = await db
+        .prepare(`SELECT 1 AS reste FROM docs WHERE rev > ?1 AND collection IN (${marqueurs.replace(/\?(\d+)/g, (_, n) => `?${Number(n) - 1}`)}) LIMIT 1`)
+        .bind(lignes[lignes.length - 1]!.rev, ...autorisees)
+        .first();
+      encore = !!suite;
+    }
+  }
   const docs = lignes.map((l) =>
     l.deleted
       ? `{"collection":${JSON.stringify(l.collection)},"id":${JSON.stringify(l.id)},"majLe":${l.updated_at},"rev":${l.rev},"supprime":true}`

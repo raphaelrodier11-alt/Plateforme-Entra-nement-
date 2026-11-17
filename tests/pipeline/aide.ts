@@ -46,12 +46,13 @@ export class StockageMemoire implements Stockage {
   }
 
   /** Simule un envoi depuis l'app : un seul morceau, avec sa fiche. */
-  async deposer(depot: { id: string; nom: string; role: 'cours' | 'annales'; contenu: string; modifieLe: string }): Promise<void> {
+  async deposer(depot: { id: string; nom: string; chemin?: string; role: 'cours' | 'annales' | 'anciens'; contenu: string; modifieLe: string }): Promise<void> {
     this.morceaux.set(`${depot.id}/0`, Buffer.from(depot.contenu).toString('base64'));
     await this.ecrire('depots', [
       {
         id: depot.id,
         nom: depot.nom,
+        ...(depot.chemin ? { chemin: depot.chemin } : {}),
         role: depot.role,
         mimeType: 'application/pdf',
         taille: depot.contenu.length,
@@ -169,14 +170,22 @@ export class IaTest implements Ia {
       };
     }
     if (etape === 'Classement en matières et chapitres') {
-      const lignes = [...consigne.matchAll(/^(f\d+) \| (cours|annales) \| ([^|]+) \|/gm)];
+      const lignes = [...consigne.matchAll(/^(f\d+) \| (cours|annales|anciens) \| ([^|]+) \|/gm)];
       const matieres = new Map<string, string>();
       const chapitres = new Map<string, { ref: string; matiere: string; titre: string }>();
+      const refMatiere = (nom: string) => {
+        if (!matieres.has(nom)) matieres.set(nom, `m${matieres.size + 1}`);
+        return matieres.get(nom)!;
+      };
       const fichiers = lignes.map(([, ref, dossier, chemin]) => {
         const segments = chemin!.trim().split('/');
-        const nomMatiere = segments[0]!;
-        if (!matieres.has(nomMatiere)) matieres.set(nomMatiere, `m${matieres.size + 1}`);
-        const matiere = matieres.get(nomMatiere)!;
+        if (dossier === 'anciens') {
+          // Ancienne version : rattachée au chapitre de même titre s'il existe, sinon à aucun.
+          const titre = segments.at(-1)!.replace(/\.pdf$/, '');
+          const matiere = segments.length > 1 ? refMatiere(segments.at(-2)!) : null;
+          return { ref, role: 'ancien', matiere, chapitre: chapitres.get(titre)?.ref ?? null, partiel: null };
+        }
+        const matiere = refMatiere(segments[0]!);
         if (dossier === 'annales') {
           const nom = segments.at(-1)!;
           return {
@@ -196,6 +205,23 @@ export class IaTest implements Ia {
         chapitres: [...chapitres.values()],
         fichiers,
       };
+    }
+    if (etape === 'Comparaison des anciennes versions') {
+      const [, ancien = '', actuel = ''] =
+        /=== VERSION PLUS ANCIENNE ===\n([\s\S]*?)\n\n=== VERSION ACTUELLE ===\n([\s\S]*)$/.exec(consigne) ?? [];
+      const utiles = (t: string) => t.split('\n').filter((l) => l && !l.startsWith('#####') && !l.startsWith('---'));
+      const avant = new Set(utiles(ancien));
+      const nouvelles = utiles(actuel).filter((l) => !avant.has(l));
+      return nouvelles.length === 0
+        ? { identique: true, resume: 'Aucun changement de fond.', changements: [] }
+        : {
+            identique: false,
+            resume: `${nouvelles.length} ligne(s) nouvelle(s).`,
+            changements: [
+              { type: 'ajout', importance: 'majeure', sujet: 'Contenu ajouté', avant: null, apres: nouvelles[0]!.slice(-200), page: null },
+              { type: 'modification', importance: 'mineure', sujet: 'Précision', avant: 'ancien', apres: 'nouveau', page: null },
+            ],
+          };
     }
     if (etape === 'Extraction des annales') {
       // Les sujets de test contiennent des lignes « Q<n>: énoncé | A) … | B) … | REP: A,B ».

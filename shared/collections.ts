@@ -12,6 +12,7 @@ export const COLLECTIONS = {
   chapitres: 'contenu',
   fichiers: 'contenu',
   depots: 'contenu',
+  actualisations: 'contenu',
   partiels: 'contenu',
   questions: 'contenu',
   cas: 'contenu',

@@ -10,7 +10,7 @@ import type { Drive, FichierDrive } from './drive';
 import type { Stockage } from './stockage';
 
 /** « Dossiers » virtuels qui désignent les fichiers envoyés. */
-export const DOSSIER_DEPOT = { cours: 'depot:cours', annales: 'depot:annales' } as const;
+export const DOSSIER_DEPOT = { cours: 'depot:cours', annales: 'depot:annales', anciens: 'depot:anciens' } as const;
 
 const PREFIXE = 'depot:';
 
@@ -23,14 +23,14 @@ export function driveDepot(
 ): Drive {
   return {
     async lister(dossierId) {
-      const role = dossierId === DOSSIER_DEPOT.cours ? 'cours' : 'annales';
+      const role = dossierId === DOSSIER_DEPOT.cours ? 'cours' : dossierId === DOSSIER_DEPOT.anciens ? 'anciens' : 'annales';
       return depots()
         .filter((d) => d.role === role)
         .map(
           (d): FichierDrive => ({
             id: idFichierDepot(d.id),
             nom: d.nom,
-            chemin: d.nom,
+            chemin: d.chemin ?? d.nom,
             mimeType: d.mimeType,
             modifieLe: d.modifieLe,
             taille: d.taille,

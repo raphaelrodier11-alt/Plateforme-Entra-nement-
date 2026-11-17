@@ -26,6 +26,7 @@ import type {
 } from '../shared/types';
 import { ECHECS_MAX, notifier, type Contexte } from './contexte';
 import { idDossier, type Drive } from './drive';
+import { comparer, finaliserAnciens } from './actualisations';
 import { DOSSIER_DEPOT, driveComposite, driveDepot, estFichierDepot, idFichierDepot } from './depot';
 import { ajouterQuestions, genererChapitres, traiterAnnales, verifierChapitres } from './generation';
 import type { Ia } from './ia';
@@ -131,7 +132,7 @@ export async function executer(d: Dependances): Promise<Issue> {
   };
   const resteDuTravail = (): boolean =>
     memoire.liste<Fichier>('fichiers').some(aTraiter) ||
-    memoire.liste<Chapitre>('chapitres').some((x) => x.aGenerer || x.aVerifier);
+    memoire.liste<Chapitre>('chapitres').some((x) => x.aGenerer || x.aVerifier || x.aComparer);
 
   const etatInitial = lireEtat();
   const scanDu =
@@ -147,7 +148,7 @@ export async function executer(d: Dependances): Promise<Issue> {
   }
 
   await memoire.charger(
-    'matieres', 'partiels', 'questions', 'cas', 'fiches', 'flashcards', 'anomalies', 'illisibles', 'textes',
+    'matieres', 'partiels', 'questions', 'cas', 'fiches', 'flashcards', 'anomalies', 'illisibles', 'actualisations', 'textes',
   );
   const contexte: Contexte = {
     memoire,
@@ -168,6 +169,7 @@ export async function executer(d: Dependances): Promise<Issue> {
       await scanner(contexte, {
         cours: [...(avecDrive ? [dossierCours!] : []), ...(avecDepot ? [DOSSIER_DEPOT.cours] : [])],
         annales: [...(avecDrive ? [dossierAnnales!] : []), ...(avecDepot ? [DOSSIER_DEPOT.annales] : [])],
+        anciens: avecDepot ? [DOSSIER_DEPOT.anciens] : [],
         garde: avecDrive,
       });
       await majEtat({ dernierScan: maintenant });
@@ -279,8 +281,10 @@ export async function executer(d: Dependances): Promise<Issue> {
     try {
       await lireScans(contexte);
       await structurer(contexte);
+      await finaliserAnciens(contexte);
       await traiterAnnales(contexte);
       await genererChapitres(contexte);
+      await comparer(contexte);
       await verifierChapitres(contexte);
       for (const t of questionsDemandees) {
         const n = t.chapitreId ? await ajouterQuestions(contexte, t.chapitreId) : 0;

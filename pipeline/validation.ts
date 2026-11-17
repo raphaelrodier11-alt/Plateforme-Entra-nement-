@@ -8,6 +8,7 @@
  */
 import type {
   Anomalie,
+  Changement,
   BlocFiche,
   NoeudArbre,
   Objet3D,
@@ -544,4 +545,43 @@ export function validerAnomalies(v: unknown, c: ContexteAnomalies): Anomalie[] {
     });
   }
   return anomalies;
+}
+
+// --- Actualisations -----------------------------------------------------------
+
+export interface ComparaisonBrute {
+  resume: string;
+  changements: Changement[];
+}
+
+/** Vérifie la comparaison de deux versions d'un cours. */
+export function validerActualisation(v: unknown): ComparaisonBrute {
+  const racine = objet(v) ?? {};
+  const identique = racine.identique === true;
+  const changements = liste(racine.changements)
+    .map(objet)
+    .map((c): Changement | undefined => {
+      const type = (['ajout', 'retrait', 'modification'] as const).find((t) => t === c?.type);
+      const sujet = texte(c?.sujet, 200);
+      const avant = texte(c?.avant, 700);
+      const apres = texte(c?.apres, 700);
+      if (!type || !sujet) return undefined;
+      // Un changement doit montrer au moins un côté de la comparaison.
+      if (!avant && !apres) return undefined;
+      return {
+        type,
+        importance: c?.importance === 'majeure' ? 'majeure' : 'mineure',
+        sujet,
+        ...(avant ? { avant } : {}),
+        ...(apres ? { apres } : {}),
+        ...(entier(c?.page) ? { page: entier(c?.page) } : {}),
+      };
+    })
+    .filter((c): c is Changement => !!c)
+    // Les changements majeurs d'abord, l'ordre de l'IA sinon.
+    .sort((a, b) => Number(b.importance === 'majeure') - Number(a.importance === 'majeure'))
+    .slice(0, 40);
+  const retenus = identique ? [] : changements;
+  const resume = texte(racine.resume, 700) || (retenus.length ? '' : 'Aucun changement de fond.');
+  return { resume, changements: retenus };
 }

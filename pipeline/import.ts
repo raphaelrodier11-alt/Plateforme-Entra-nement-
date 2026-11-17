@@ -60,6 +60,8 @@ export interface BilanScan {
 export interface SourcesScan {
   cours: string[];
   annales: string[];
+  /** Anciennes versions des cours, gardées pour être comparées. */
+  anciens?: string[];
   /**
    * Vrai quand un drive est connecté : un drive qui paraît soudain vide est
    * alors plus probablement une panne qu'une suppression générale.
@@ -71,6 +73,7 @@ export async function scanner(c: Contexte, sources: SourcesScan): Promise<BilanS
   const listes: [RoleFichier, FichierDrive[]][] = [];
   for (const dossier of sources.cours) listes.push(['cours', await c.drive.lister(dossier)]);
   for (const dossier of sources.annales) listes.push(['annale', await c.drive.lister(dossier)]);
+  for (const dossier of sources.anciens ?? []) listes.push(['ancien', await c.drive.lister(dossier)]);
   const connus = c.memoire.liste<Fichier>('fichiers');
   const bilan: BilanScan = { total: 0, nouveaux: 0, modifies: 0, supprimes: 0 };
   const vus = new Set<string>();
@@ -183,20 +186,46 @@ export function aTraiter(f: Fichier): boolean {
   return (f.etat === 'nouveau' || f.etat === 'maj_validee') && f.role !== 'autre' && (f.echecs ?? 0) < ECHECS_MAX;
 }
 
-async function enregistrerTexte(
+/** Écrit le texte d'un fichier (en plusieurs documents si besoin) et retire les restes d'une version plus longue. */
+async function ecrireTextes(
   c: Contexte,
-  fichier: Fichier,
+  idBase: string,
+  version: string,
   pages: TexteFichier['pages'],
   pagesAOcr: number[],
 ): Promise<void> {
   const anciens = c.memoire
     .liste<TexteFichier>('textes')
-    .filter((t) => t.fichierId === fichier.id)
+    .filter((t) => t.fichierId === idBase)
     .map((t) => t.id);
-  const nouveaux = decouperTexte(fichier.id, fichier.modifieLe, pages, pagesAOcr);
+  const nouveaux = decouperTexte(idBase, version, pages, pagesAOcr);
   const gardes = new Set(nouveaux.map((t) => t.id));
   await c.memoire.ecrire('textes', ...nouveaux);
   await c.memoire.supprimer('textes', ...anciens.filter((id) => !gardes.has(id)));
+}
+
+export async function enregistrerTexte(
+  c: Contexte,
+  fichier: Fichier,
+  pages: TexteFichier['pages'],
+  pagesAOcr: number[],
+): Promise<void> {
+  await ecrireTextes(c, fichier.id, fichier.modifieLe, pages, pagesAOcr);
+}
+
+/** Identifiant sous lequel on garde la version précédente du texte d'un fichier. */
+export const idPrecedent = (fichierId: string): string => `prec:${fichierId}`;
+
+/**
+ * Avant de remplacer le texte d'un cours par sa nouvelle version, on garde
+ * l'ancienne : c'est elle qui permet de montrer ce qui a changé.
+ */
+async function garderVersionPrecedente(c: Contexte, fichier: Fichier, ancien: TexteFichier): Promise<void> {
+  await ecrireTextes(c, idPrecedent(fichier.id), ancien.version, ancien.pages, []);
+  const chapitre = fichier.chapitreId ? c.memoire.lire<Chapitre>('chapitres', fichier.chapitreId) : undefined;
+  if (chapitre && !chapitre.aComparer) {
+    await c.memoire.ecrire<Chapitre>('chapitres', { ...chapitre, aComparer: true });
+  }
 }
 
 export async function lireFichiers(c: Contexte): Promise<{ lus: number; echecs: number }> {
@@ -204,13 +233,17 @@ export async function lireFichiers(c: Contexte): Promise<{ lus: number; echecs: 
   let echecs = 0;
   for (const fichier of c.memoire.liste<Fichier>('fichiers').filter(aTraiter)) {
     if (tempsEcoule(c)) break;
-    if (texteDe(c, fichier.id)?.version === fichier.modifieLe) continue;
+    const precedent = texteDe(c, fichier.id);
+    if (precedent?.version === fichier.modifieLe) continue;
     try {
       const { octets, mimeType } = await c.drive.telecharger({ ...fichier });
       const lecture = await c.lire(octets, mimeType);
       if (!lecture) {
         await c.memoire.ecrire<Fichier>('fichiers', { ...fichier, role: 'autre', etat: 'a_jour', versionTraitee: fichier.modifieLe });
         continue;
+      }
+      if (precedent && fichier.role === 'cours' && precedent.pagesAOcr.length === 0) {
+        await garderVersionPrecedente(c, fichier, precedent);
       }
       await enregistrerTexte(c, fichier, lecture.pages, lecture.pagesAOcr);
       await c.memoire.ecrire<Fichier>('fichiers', { ...fichier, nbPages: lecture.pages.length });
@@ -265,6 +298,7 @@ export function estimer(
 
   let nbCours = 0;
   let nbAnnales = 0;
+  let nbAnciens = 0;
   let pagesScannees = 0;
   let questionsAnnales = 0;
   let tokensCoursTotal = 0;
@@ -294,6 +328,10 @@ export function estimer(
       ajouter('Flashcards', 'masse', 1, tokens, 1800);
       // Le modèle expert réfléchit avant de répondre : ces tokens sont facturés comme écrits.
       ajouter("Détection d'erreurs", 'expert', 1, tokens + 4000, 9000);
+    } else if (fichier.role === 'ancien') {
+      nbAnciens += 1;
+      // Comparaison avec le cours actuel, supposé de taille voisine.
+      ajouter('Comparaison des anciennes versions', 'masse', 1, tokens * 2 + 1500, 2500);
     } else {
       nbAnnales += 1;
       const questions = Math.max(5, Math.round(tokens / 180));
@@ -321,6 +359,9 @@ export function estimer(
     tauxEurParUsd: TAUX_EUR_PAR_USD,
     hypotheses: [
       `${nbCours} fichier${nbCours > 1 ? 's' : ''} de cours et ${nbAnnales} fichier${nbAnnales > 1 ? 's' : ''} d'annales à traiter, soit environ ${Math.round(tokensCoursTotal / 1000)} milliers de tokens de cours.`,
+      ...(nbAnciens > 0
+        ? [`${nbAnciens} fichier${nbAnciens > 1 ? 's' : ''} d'anciennes versions à comparer aux cours actuels, pour montrer ce qui a changé.`]
+        : []),
       `${pagesScannees} page${pagesScannees > 1 ? 's' : ''} scannée${pagesScannees > 1 ? 's' : ''} à faire lire par l'IA.`,
       `Environ ${questionsAnnales} questions d'annales à extraire ; 20 à 50 QCM générés par cours, plus une réserve pour les examens blancs.`,
       'Chaque mois ensuite : hypothèse de deux fichiers mis à jour et un nouveau chapitre. La vérification hebdomadaire du drive est gratuite.',
@@ -431,14 +472,16 @@ export async function structurer(c: Contexte): Promise<void> {
   const ia = iaRequise(c);
   const aClasser = c.memoire
     .liste<Fichier>('fichiers')
-    .filter((f) => aTraiter(f) && !f.matiereId && !!texteDe(c, f.id));
+    .filter((f) => aTraiter(f) && !f.matiereId && !!texteDe(c, f.id))
+    // Les anciennes versions passent en dernier : les chapitres actuels existent alors déjà.
+    .sort((a, b) => Number(a.role === 'ancien') - Number(b.role === 'ancien'));
 
   for (const lot of enLots(aClasser, FICHIERS_PAR_CLASSEMENT)) {
     if (tempsEcoule(c)) break;
     const refs = new Map(lot.map((f, i) => [`f${i + 1}`, f]));
     const lignes: LigneFichier[] = [...refs].map(([ref, f]) => ({
       ref,
-      dossier: f.role === 'cours' ? 'cours' : 'annales',
+      dossier: f.role === 'cours' ? 'cours' : f.role === 'ancien' ? 'anciens' : 'annales',
       chemin: f.chemin,
       debut: texteDe(c, f.id)?.pages.find((p) => p.texte)?.texte ?? '',
     }));
@@ -487,19 +530,52 @@ export async function structurer(c: Contexte): Promise<void> {
       return id;
     };
 
+    // Un chapitre n'est créé que quand un fichier de cours s'y rattache : une
+    // ancienne version seule ne crée jamais de chapitre.
     const idChapitre = new Map<string, string>(chapitres.map((x) => [x.id, x.id]));
+    const chapitresProposes = new Map<string, { matiereId: string; titre: string }>();
     for (const x of (Array.isArray(reponse.chapitres) ? reponse.chapitres : []).map(objet)) {
       const matiereId = idMatiere.get(chaine(x.matiere));
       const titre = chaine(x.titre);
       if (!chaine(x.ref) || !matiereId || !titre) continue;
-      idChapitre.set(chaine(x.ref), await creerChapitre(matiereId, titre));
+      chapitresProposes.set(chaine(x.ref), { matiereId, titre });
     }
+    const chapitreDuCours = async (ref: string): Promise<string | undefined> => {
+      const connu = idChapitre.get(ref);
+      if (connu) return connu;
+      const propose = chapitresProposes.get(ref);
+      if (!propose) return undefined;
+      const id = await creerChapitre(propose.matiereId, propose.titre);
+      idChapitre.set(ref, id);
+      return id;
+    };
 
     const classes = new Set<string>();
-    for (const f of (Array.isArray(reponse.fichiers) ? reponse.fichiers : []).map(objet)) {
+    const reponses = (Array.isArray(reponse.fichiers) ? reponse.fichiers : [])
+      .map(objet)
+      // Les anciennes versions en dernier, une fois les chapitres des cours créés.
+      .sort((a, b) => Number(refs.get(chaine(a.ref))?.role === 'ancien') - Number(refs.get(chaine(b.ref))?.role === 'ancien'));
+    for (const f of reponses) {
       const fichier = refs.get(chaine(f.ref));
       if (!fichier || classes.has(fichier.id)) continue;
-      const role = (['cours', 'annale', 'corrige', 'autre'] as const).find((r) => r === f.role) ?? fichier.role;
+      const role =
+        fichier.role === 'ancien'
+          ? ('ancien' as const)
+          : ((['cours', 'annale', 'corrige', 'autre'] as const).find((r) => r === f.role) ?? fichier.role);
+      if (role === 'ancien') {
+        const ref = chaine(f.chapitre);
+        const chapitreId = idChapitre.get(ref);
+        const chapitre = chapitreId ? c.memoire.lire<Chapitre>('chapitres', chapitreId) : undefined;
+        const matiereAncien = chapitre?.matiereId ?? idMatiere.get(chaine(f.matiere));
+        if (!matiereAncien) continue;
+        classes.add(fichier.id);
+        await c.memoire.ecrire<Fichier>('fichiers', {
+          ...fichier,
+          matiereId: matiereAncien,
+          ...(chapitre ? { chapitreId: chapitre.id } : {}),
+        });
+        continue;
+      }
       if (role === 'autre') {
         classes.add(fichier.id);
         await c.memoire.ecrire<Fichier>('fichiers', { ...fichier, role, etat: 'a_jour', versionTraitee: fichier.modifieLe });
@@ -510,7 +586,7 @@ export async function structurer(c: Contexte): Promise<void> {
       classes.add(fichier.id);
 
       if (role === 'cours') {
-        const chapitreId = idChapitre.get(chaine(f.chapitre)) ?? (await creerChapitre(matiereId, titreDepuisNom(fichier.nom)));
+        const chapitreId = (await chapitreDuCours(chaine(f.chapitre))) ?? (await creerChapitre(matiereId, titreDepuisNom(fichier.nom)));
         const chapitre = c.memoire.lire<Chapitre>('chapitres', chapitreId)!;
         await c.memoire.ecrire<Chapitre>('chapitres', {
           ...chapitre,

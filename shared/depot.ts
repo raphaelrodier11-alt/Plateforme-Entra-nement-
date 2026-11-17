@@ -26,10 +26,34 @@ const TYPES_PAR_EXTENSION: Record<string, string> = {
   heif: 'image/heif',
 };
 
-/** Valeur de l'attribut `accept` d'un champ de choix de fichiers. */
-export const EXTENSIONS_ACCEPTEES = Object.keys(TYPES_PAR_EXTENSION)
-  .map((e) => `.${e}`)
-  .join(',');
+/** Valeur de l'attribut `accept` d'un champ de choix de fichiers (les ZIP sont dépliés par l'app). */
+export const EXTENSIONS_ACCEPTEES = [...Object.keys(TYPES_PAR_EXTENSION), 'zip'].map((e) => `.${e}`).join(',');
+
+export const TAILLE_MAX_CHEMIN = 300;
+
+export function estZip(nom: string): boolean {
+  return /\.zip$/i.test(nom.trim());
+}
+
+/**
+ * Chemin propre d'un fichier : séparateurs normalisés, sans dossier racine
+ * parasite, tronqué sur la fin s'il est trop long.
+ */
+export function nettoyerChemin(chemin: string): string {
+  const propre = chemin
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter((segment) => segment && segment !== '.' && segment !== '..')
+    .join('/');
+  return propre.length > TAILLE_MAX_CHEMIN ? propre.slice(propre.length - TAILLE_MAX_CHEMIN) : propre;
+}
+
+/** Fichiers à ignorer dans un dossier ou un ZIP (métadonnées système, fichiers cachés). */
+export function estFichierParasite(chemin: string): boolean {
+  const segments = chemin.split('/');
+  const nom = segments.at(-1) ?? '';
+  return segments.includes('__MACOSX') || nom.startsWith('.') || nom === 'Thumbs.db' || nom.startsWith('~$');
+}
 
 /**
  * Type d'un fichier d'après son extension (les navigateurs mobiles ne

@@ -4,18 +4,24 @@
  */
 import {
   ArrowLeft,
+  ArrowRight,
   BookOpen,
   FilePen,
+  GitCompare,
   Layers,
+  Minus,
   Play,
+  Plus,
+  RefreshCw,
   Sparkles,
   Star,
   TriangleAlert,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { cleJour, jourLisible } from '../../shared/dates';
 import { estIncontournable, nbPartiels } from '../../shared/marqueurs';
-import type { BlocFiche } from '../../shared/types';
+import type { Actualisation, BlocFiche, Changement } from '../../shared/types';
 import {
   Bouton,
   EtatVide,
@@ -32,9 +38,90 @@ import { RenduFiche } from '../fiches/RenduFiche';
 import { lancerQcmChapitre } from '../lib/actions';
 import { choisirQuestions, demarrerSession } from '../lib/sessions';
 
-type Onglet = 'fiche' | 'aides' | 'annales';
+type Onglet = 'fiche' | 'aides' | 'annales' | 'actualisations';
 
 const BLOCS_AIDES: BlocFiche['type'][] = ['mnemo', 'schema', 'etapes', 'arbre', 'scene3d'];
+
+const ICONE_CHANGEMENT = { ajout: Plus, retrait: Minus, modification: RefreshCw } as const;
+const LIBELLE_CHANGEMENT = { ajout: 'Ajouté', retrait: 'Retiré', modification: 'Modifié' } as const;
+
+function LigneChangement({ changement }: { changement: Changement }) {
+  const Icone = ICONE_CHANGEMENT[changement.type];
+  return (
+    <li className="rounded-xl border border-bord bg-surface-2 p-3 text-sm">
+      <div className="mb-1.5 flex flex-wrap items-center gap-2">
+        <Pastille ton={changement.importance === 'majeure' ? 'alerte' : 'neutre'} icone={Icone}>
+          {LIBELLE_CHANGEMENT[changement.type]}
+          {changement.importance === 'majeure' ? ' · majeur' : ''}
+        </Pastille>
+        <span className="font-medium">{changement.sujet}</span>
+        {changement.page !== undefined && <span className="chiffres text-xs text-muet">page {changement.page}</span>}
+      </div>
+      {(changement.avant || changement.apres) && (
+        <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-start">
+          <p className="rounded-lg bg-surface p-2.5 text-texte-2">
+            <span className="mb-0.5 block text-[11px] tracking-wide text-muet uppercase">Avant</span>
+            {changement.avant ?? '—'}
+          </p>
+          <ArrowRight size={16} className="hidden self-center text-muet sm:block" aria-hidden />
+          <p className="rounded-lg bg-accent-fond p-2.5">
+            <span className="mb-0.5 block text-[11px] tracking-wide text-accent-clair uppercase">Maintenant</span>
+            {changement.apres ?? '—'}
+          </p>
+        </div>
+      )}
+    </li>
+  );
+}
+
+function BlocActualisation({ actualisation }: { actualisation: Actualisation }) {
+  const majeurs = actualisation.changements.filter((c) => c.importance === 'majeure');
+  const mineurs = actualisation.changements.filter((c) => c.importance !== 'majeure');
+  return (
+    <section className="carte p-4 sm:p-5">
+      <h3 className="flex items-center gap-2 text-sm font-semibold">
+        <GitCompare size={16} className="text-accent-clair" aria-hidden />
+        {actualisation.origine === 'ancien'
+          ? "Par rapport à l'ancienne version"
+          : 'Par rapport à la version précédente'}
+      </h3>
+      <p className="mt-1 text-xs text-muet">
+        Comparé le {jourLisible(cleJour(actualisation.comparesLe))} · {actualisation.fichiers.join(', ')}
+      </p>
+      {actualisation.resume && <p className="mt-3 text-sm text-texte-2">{actualisation.resume}</p>}
+      {actualisation.changements.length === 0 ? (
+        <p className="mt-3 text-sm text-texte-2">Aucun changement de fond.</p>
+      ) : (
+        <>
+          {majeurs.length > 0 && (
+            <>
+              <h4 className="mt-4 mb-2 text-xs font-semibold tracking-wide text-muet uppercase">
+                À réapprendre ({majeurs.length})
+              </h4>
+              <ul className="space-y-2">
+                {majeurs.map((c, i) => (
+                  <LigneChangement key={i} changement={c} />
+                ))}
+              </ul>
+            </>
+          )}
+          {mineurs.length > 0 && (
+            <>
+              <h4 className="mt-4 mb-2 text-xs font-semibold tracking-wide text-muet uppercase">
+                Détails ({mineurs.length})
+              </h4>
+              <ul className="space-y-2">
+                {mineurs.map((c, i) => (
+                  <LigneChangement key={i} changement={c} />
+                ))}
+              </ul>
+            </>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
 
 export function PageChapitre() {
   const { id = '' } = useParams();
@@ -66,6 +153,8 @@ export function PageChapitre() {
   const questions = d.questionsParChapitre.get(id) ?? [];
   const annales = questions.filter((q) => q.source === 'annale');
   const flashcards = d.flashcards.filter((f) => f.chapitreId === id);
+  const actualisations = d.actualisationsParChapitre.get(id) ?? [];
+  const nbChangements = actualisations.reduce((somme, a) => somme + a.changements.length, 0);
   const nbAides =
     fiche?.sections.reduce(
       (s, section) => s + section.blocs.filter((b) => BLOCS_AIDES.includes(b.type)).length,
@@ -179,6 +268,7 @@ export function PageChapitre() {
             { valeur: 'fiche', libelle: 'Fiche' },
             { valeur: 'aides', libelle: 'Aides', compte: nbAides },
             { valeur: 'annales', libelle: 'Annales', compte: annales.length },
+            { valeur: 'actualisations', libelle: 'Actualisations', compte: nbChangements },
           ]}
         />
       </div>
@@ -199,6 +289,24 @@ export function PageChapitre() {
           <EtatVide icone={Sparkles} titre="Pas encore d'aides pour ce chapitre">
             Mnémotechniques, schémas interactifs et modèles 3D apparaîtront ici.
           </EtatVide>
+        ))}
+
+      {onglet === 'actualisations' &&
+        (actualisations.length === 0 ? (
+          <EtatVide icone={GitCompare} titre="Pas encore de comparaison pour ce chapitre">
+            Envoie les anciennes versions de ce cours (page Fichiers, onglet « Anciennes versions ») : l'app
+            compare et te montre ce qui a changé. Chaque fois que tu renvoies une nouvelle version du cours, elle
+            est comparée à la précédente.
+            <div className="mt-4">
+              <LienBouton to="/fichiers">Envoyer des fichiers</LienBouton>
+            </div>
+          </EtatVide>
+        ) : (
+          <div className="space-y-4">
+            {actualisations.map((a) => (
+              <BlocActualisation key={a.id} actualisation={a} />
+            ))}
+          </div>
         ))}
 
       {onglet === 'annales' &&

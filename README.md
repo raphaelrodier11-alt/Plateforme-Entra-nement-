@@ -136,6 +136,27 @@ Aucun compte Google à configurer. Dans l'app, page **Fichiers** :
 4. Un conseil pour les annales : mets la matière et l'année dans le nom du fichier
    (« Cardio partiel 2024.pdf »), le classement s'en sert.
 
+**Envoyer beaucoup de fichiers d'un coup.** Trois façons : une sélection multiple, un
+dossier entier (bouton « Choisir un dossier entier », sur ordinateur et Android), ou
+un **ZIP** (le plus simple : télécharge le dossier de ton Drive, qui arrive en ZIP, puis
+choisis-le). Le ZIP est déplié dans l'app, fichier par fichier : les fichiers cachés et
+les formats sans intérêt sont ignorés, les sous-dossiers sont conservés pour aider au
+classement. Trois fichiers partent en parallèle ; ceux déjà présents sont reconnus et
+sautés, donc il suffit de refaire le même choix pour reprendre un envoi interrompu.
+
+**Comparer les versions en permanence.** Deux comparaisons, refaites automatiquement :
+
+- onglet **Anciennes versions** : envoie l'ancienne série de cours (le « Lot de survie »).
+  Chaque ancien fichier est rattaché au cours actuel qui traite du même sujet ; il ne
+  produit ni fiche ni QCM, il sert seulement à montrer ce qui a changé ;
+- chaque fois que tu **renvoies un cours** du même nom et du même dossier, la nouvelle
+  version est comparée à celle qu'elle remplace.
+
+Le résultat est dans l'onglet **Actualisations** du chapitre : les changements à
+réapprendre (valeur, seuil, traitement, classification) d'abord, puis les détails, avec
+« avant » et « maintenant ». Les chapitres actualisés portent un badge dans la liste des
+cours. Un ancien fichier sans cours correspondant est gardé mais ne crée aucun chapitre.
+
 Les fichiers sont gardés dans la base Cloudflare (jamais dans le dépôt GitHub). Le
 traitement démarre au passage suivant du pipeline, toutes les heures au plus ; passe
 ensuite à l'étape 5 (clé Gemini) et au premier import.

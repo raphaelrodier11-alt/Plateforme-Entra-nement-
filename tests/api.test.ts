@@ -405,3 +405,55 @@ describe('dépôt de fichiers', () => {
     expect((await lireMorceau(id, 0)).status).toBe(404);
   });
 });
+
+describe('dépôt : chemins, anciennes versions et gros volumes', () => {
+  const envoyer = async (nom: string, chemin: string, role = 'cours') => {
+    const { id, v } = (await (
+      await appel('/api/depot/commencer', { method: 'POST', body: JSON.stringify({ nom, chemin, role, taille: 4 }) }, CLE_APP)
+    ).json()) as { id: string; v: number };
+    await appel(`/api/depot/${id}/${v}/0`, { method: 'PUT', body: 'QUJD', headers: { 'Content-Type': 'text/plain' } }, CLE_APP);
+    const fin = await appel(
+      `/api/depot/${id}/${v}/terminer`,
+      { method: 'POST', body: JSON.stringify({ nom, chemin, role, taille: 4, morceaux: 1 }) },
+      CLE_APP,
+    );
+    return (await fin.json()) as { id: string; chemin: string; role: string };
+  };
+
+  it('deux fichiers de même nom dans des dossiers différents sont deux fichiers', async () => {
+    const a = await envoyer('Cours.pdf', 'SEMESTRE 1/INFECTIO/Cours.pdf');
+    const b = await envoyer('Cours.pdf', 'SEMESTRE 1/IMMUNOPATH/Cours.pdf');
+    expect(a.id).not.toBe(b.id);
+    expect(b.chemin).toBe('SEMESTRE 1/IMMUNOPATH/Cours.pdf');
+    const ancienne = await envoyer('Cours.pdf', 'SEMESTRE 1/INFECTIO/Cours.pdf');
+    expect(ancienne.id).toBe(a.id);
+  });
+
+  it('accepte le rôle « anciens » et le garde distinct du cours de même chemin', async () => {
+    const cours = await envoyer('Cours.pdf', 'Cardio/Cours.pdf', 'cours');
+    const ancien = await envoyer('Cours.pdf', 'Cardio/Cours.pdf', 'anciens');
+    expect(ancien.role).toBe('anciens');
+    expect(ancien.id).not.toBe(cours.id);
+  });
+
+  it('une réponse de synchronisation reste sous le budget de taille, et reprend là où elle s\'est arrêtée', async () => {
+    const gros = 'x'.repeat(3_000_000);
+    await pousser(
+      Array.from({ length: 5 }, (_, i) => ({ collection: 'textes' as const, id: `t${i}`, data: { id: `t${i}`, texte: gros }, majLe: 10 + i })),
+      CLE_PIPELINE,
+      '/api/admin/docs',
+    );
+    const ids: string[] = [];
+    let depuis = 0;
+    for (let tour = 0; tour < 10; tour++) {
+      const reponse = await appel(`/api/admin/docs?collection=textes&depuis=${depuis}`, {}, CLE_PIPELINE);
+      const texte = await reponse.text();
+      expect(texte.length).toBeLessThan(10_000_000);
+      const page = JSON.parse(texte) as { docs: { id: string }[]; rev: number; encore: boolean };
+      ids.push(...page.docs.map((d) => d.id));
+      depuis = page.rev;
+      if (!page.encore) break;
+    }
+    expect(ids).toEqual(['t0', 't1', 't2', 't3', 't4']);
+  });
+});

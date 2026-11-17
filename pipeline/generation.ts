@@ -657,6 +657,8 @@ export async function genererChapitres(c: Contexte): Promise<void> {
         ...(c.memoire.lire<Chapitre>('chapitres', chapitre.id) ?? chapitre),
         ...(resume ? { resume } : {}),
         aGenerer: false,
+        // Le cours vient d'être (re)généré : on le compare à ses versions plus anciennes.
+        aComparer: true,
         majEnAttente: false,
         version: chapitre.version + 1,
       });

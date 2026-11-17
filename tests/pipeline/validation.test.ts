@@ -8,6 +8,7 @@ import { Compteur, cout, familleDe, tarifPour } from '../../pipeline/tarifs';
 import {
   empreinte,
   slug,
+  validerActualisation,
   validerAnnale,
   validerAnomalies,
   validerBloc,
@@ -345,5 +346,51 @@ describe('outils du pipeline', () => {
     expect(slug('???')).toBe('sans-titre');
     expect(empreinte('abc')).toBe(empreinte('abc'));
     expect(empreinte('abc')).not.toBe(empreinte('abd'));
+  });
+});
+
+describe('validation des actualisations', () => {
+  it('garde les changements complets, les majeurs en premier', () => {
+    const { resume, changements } = validerActualisation({
+      identique: false,
+      resume: 'Quatre classes au lieu de trois.',
+      changements: [
+        { type: 'modification', importance: 'mineure', sujet: 'Seuil', avant: '45 %', apres: '40 %', page: 3 },
+        { type: 'ajout', importance: 'majeure', sujet: 'SGLT2', avant: null, apres: 'Inhibiteurs de SGLT2.', page: '14' },
+        { type: 'retrait', importance: 'inconnue', sujet: 'Ancienne notion', avant: 'Texte retiré.' },
+      ],
+    });
+    expect(resume).toBe('Quatre classes au lieu de trois.');
+    expect(changements.map((c) => [c.sujet, c.importance])).toEqual([
+      ['SGLT2', 'majeure'],
+      ['Seuil', 'mineure'],
+      ['Ancienne notion', 'mineure'],
+    ]);
+    expect(changements[0]).toMatchObject({ type: 'ajout', page: 14, apres: 'Inhibiteurs de SGLT2.' });
+    expect(changements[0]).not.toHaveProperty('avant');
+  });
+
+  it('écarte les changements sans type, sans sujet ou sans contenu à montrer', () => {
+    const { changements } = validerActualisation({
+      changements: [
+        { type: 'autre', sujet: 'x', avant: 'a' },
+        { type: 'ajout', sujet: '', apres: 'a' },
+        { type: 'ajout', sujet: 'Vide' },
+        { type: 'ajout', sujet: 'Bon', apres: 'a' },
+      ],
+    });
+    expect(changements.map((c) => c.sujet)).toEqual(['Bon']);
+  });
+
+  it('une comparaison « identique » ne garde aucun changement', () => {
+    expect(validerActualisation({ identique: true, changements: [{ type: 'ajout', sujet: 'x', apres: 'a' }] })).toEqual({
+      resume: 'Aucun changement de fond.',
+      changements: [],
+    });
+  });
+
+  it('limite à 40 changements', () => {
+    const beaucoup = Array.from({ length: 60 }, (_, i) => ({ type: 'ajout', importance: 'mineure', sujet: `s${i}`, apres: 'a' }));
+    expect(validerActualisation({ changements: beaucoup }).changements).toHaveLength(40);
   });
 });

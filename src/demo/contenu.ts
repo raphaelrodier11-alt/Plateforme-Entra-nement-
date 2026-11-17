@@ -5,6 +5,7 @@
  * identifiants commencent par « demo- », ce qui permet de tout retirer.
  */
 import type {
+  Actualisation,
   CasClinique,
   Chapitre,
   Fiche,
@@ -1398,3 +1399,43 @@ export const FLASHCARDS: Flashcard[] = [
 ];
 
 export const IDS = { M, C, P };
+
+export const ACTUALISATIONS: Actualisation[] = [
+  {
+    id: 'demo-act-ic-ancien',
+    chapitreId: C.ic,
+    matiereId: M.cardio,
+    origine: 'ancien',
+    signature: 'demo',
+    resume:
+      "Le traitement de fond de l'insuffisance cardiaque à fraction d'éjection réduite compte désormais quatre classes qui réduisent la mortalité (contre trois). Les seuils de FEVG sont précisés.",
+    changements: [
+      {
+        type: 'ajout',
+        importance: 'majeure',
+        sujet: 'Inhibiteurs de SGLT2',
+        apres: "Les inhibiteurs de SGLT2 (dapagliflozine, empagliflozine) font partie du traitement de fond qui réduit la mortalité.",
+        page: 14,
+      },
+      {
+        type: 'modification',
+        importance: 'majeure',
+        sujet: 'Classes qui réduisent la mortalité',
+        avant: "Trois classes : IEC, bêtabloquants, antialdostérone.",
+        apres: "Quatre classes : IEC (ou sacubitril-valsartan), bêtabloquants, antialdostérone, inhibiteurs de SGLT2.",
+        page: 14,
+      },
+      {
+        type: 'modification',
+        importance: 'mineure',
+        sujet: "Définition selon la fraction d'éjection",
+        avant: "Deux catégories : FEVG réduite (< 45 %) et préservée.",
+        apres: "Trois catégories : réduite (≤ 40 %), modérément réduite (41 à 49 %), préservée (≥ 50 %).",
+        page: 3,
+      },
+    ],
+    comparesLe: 0,
+    fichiers: ['Insuffisance cardiaque - lot de survie 2024.pdf'],
+    demo: true,
+  },
+];

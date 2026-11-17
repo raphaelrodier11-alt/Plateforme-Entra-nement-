@@ -16,6 +16,7 @@
     "deploy": "npm run build && node scripts/config-deploiement.cjs && wrangler deploy --config wrangler.deploiement.json"
   },
   "dependencies": {
+    "@zip.js/zip.js": "^2.25.0",
     "dexie": "^4.4.7",
     "dexie-react-hooks": "^4.4.0",
     "hono": "^4.13.19",

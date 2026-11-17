@@ -43,13 +43,19 @@ export interface Chapitre {
   /** Marqueurs du pipeline : fiche et QCM à (re)générer, erreurs à rechercher. */
   aGenerer?: boolean;
   aVerifier?: boolean;
+  /** Comparaison avec les versions plus anciennes à (re)faire. */
+  aComparer?: boolean;
   /** Date de création, pour retirer le badge « nouveau » au bout de deux semaines. */
   creeLe?: number;
   version: number;
   demo?: boolean;
 }
 
-export type RoleFichier = 'cours' | 'annale' | 'corrige' | 'autre';
+/**
+ * `ancien` : version plus ancienne d'un cours, gardée uniquement pour être
+ * comparée au cours actuel (elle ne produit ni fiche ni QCM).
+ */
+export type RoleFichier = 'cours' | 'annale' | 'corrige' | 'ancien' | 'autre';
 
 /**
  * - `nouveau` : jamais traité ;
@@ -312,6 +318,7 @@ export type TypeNotification =
   | 'fichier_modifie'
   | 'fichier_supprime'
   | 'nouveau_chapitre'
+  | 'actualisation'
   | 'generation'
   | 'anomalies'
   | 'estimation'
@@ -559,7 +566,7 @@ export interface TexteFichier {
 // Dépôt de fichiers (envoi direct depuis l'application, sans Google Drive)
 // ---------------------------------------------------------------------------
 
-export type RoleDepot = 'cours' | 'annales';
+export type RoleDepot = 'cours' | 'annales' | 'anciens';
 
 /**
  * Fichier envoyé depuis l'app. Son contenu est conservé par le serveur, en
@@ -568,6 +575,8 @@ export type RoleDepot = 'cours' | 'annales';
 export interface Depot {
   id: string;
   nom: string;
+  /** Chemin d'origine (dossiers compris), pour distinguer deux fichiers de même nom. */
+  chemin?: string;
   role: RoleDepot;
   mimeType: string;
   taille: number;
@@ -578,4 +587,40 @@ export interface Depot {
   ajouteLe: number;
   /** Date de la version actuelle, au format ISO (sert de « date de modification »). */
   modifieLe: string;
+}
+
+// ---------------------------------------------------------------------------
+// Actualisations : ce qui a changé d'une version d'un cours à l'autre
+// ---------------------------------------------------------------------------
+
+export interface Changement {
+  type: 'ajout' | 'retrait' | 'modification';
+  /** Une valeur, un seuil, un traitement ou une définition qui change = majeure. */
+  importance: 'majeure' | 'mineure';
+  sujet: string;
+  /** Ce que disait l'ancienne version. */
+  avant?: string;
+  /** Ce que dit la version actuelle. */
+  apres?: string;
+  page?: number;
+}
+
+/**
+ * Comparaison d'un chapitre avec une version plus ancienne : soit un fichier
+ * d'une ancienne série (« anciens »), soit la version précédente du même
+ * fichier avant son remplacement.
+ */
+export interface Actualisation {
+  id: string;
+  chapitreId: string;
+  matiereId: string;
+  origine: 'ancien' | 'precedente';
+  /** Empreinte des versions comparées : la comparaison est refaite quand elle change. */
+  signature: string;
+  resume: string;
+  changements: Changement[];
+  comparesLe: number;
+  /** Noms des fichiers de l'ancienne version. */
+  fichiers: string[];
+  demo?: boolean;
 }

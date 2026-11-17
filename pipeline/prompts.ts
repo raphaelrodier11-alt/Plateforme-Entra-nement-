@@ -32,7 +32,7 @@ Réponds par :
 
 export interface LigneFichier {
   ref: string;
-  dossier: 'cours' | 'annales';
+  dossier: 'cours' | 'annales' | 'anciens';
   chemin: string;
   debut: string;
 }
@@ -56,8 +56,9 @@ ${fichiers.map((f) => `${f.ref} | ${f.dossier} | ${f.chemin} | ${f.debut.replace
 Règles :
 - Une matière correspond à une unité d'enseignement ou à une discipline (exemple : « Appareil cardiovasculaire »). Un chapitre correspond à un cours.
 - Appuie-toi sur les noms de dossiers et de fichiers, puis sur le début du texte. Plusieurs fichiers peuvent appartenir au même chapitre (diaporama et polycopié du même cours).
-- Rôle "cours" : support de cours. Rôle "annale" : sujet de partiel (avec ou sans corrigé intégré). Rôle "corrige" : corrigé seul d'un partiel. Rôle "autre" : ni l'un ni l'autre (planning, consignes…).
+- Rôle "cours" : support de cours (dossier "cours" seulement). Rôle "annale" : sujet de partiel (avec ou sans corrigé intégré). Rôle "corrige" : corrigé seul d'un partiel. Rôle "autre" : ni l'un ni l'autre (planning, consignes…).
 - Pour une annale ou un corrigé : indique la matière et le partiel (libellé court comme « Partiel janvier 2024 », date au format AAAA-MM ou AAAA si elle est connue, sinon null). Le chapitre reste null : les questions seront classées une par une. Un sujet et son corrigé portent exactement le même libellé de partiel.
+- Dossier "anciens" : anciennes versions des cours, gardées uniquement pour être comparées au cours actuel. Rôle "ancien". Associe chacune au chapitre existant (ou créé dans ce lot à partir d'un cours) qui traite du même sujet ; si aucun ne correspond, mets "chapitre" à null. Un fichier ancien ne crée jamais de chapitre.
 - Pour créer une matière ou un chapitre, invente une référence ("m1", "c1"…) et utilise-la dans "fichiers".
 
 Réponds par :
@@ -291,4 +292,44 @@ ${questions.length ? ecrireQuestions(questions, true) : '(aucune)'}
 
 === COURS ===
 ${borner(cours)}`;
+}
+
+export function consigneActualisation(
+  titre: string,
+  ancien: string,
+  actuel: string,
+  origine: 'ancien' | 'precedente',
+): string {
+  const lienAvant =
+    origine === 'ancien'
+      ? "l'ancienne version du cours (série précédente)"
+      : 'la version précédente du même fichier, avant son remplacement';
+  return `Compare ${lienAvant} et la version actuelle du chapitre « ${titre} ». Dis précisément ce qui a changé sur le fond, pour qu'un étudiant sache quoi réapprendre.
+
+À signaler (changements de fond) :
+- une valeur, un seuil, une durée, une dose, un critère ou une classification qui change ;
+- un traitement, un examen, une stratégie qui apparaît, disparaît ou est remplacé ;
+- une définition ou un mécanisme corrigé ;
+- une notion entière ajoutée ou retirée.
+
+À ignorer : mise en forme, changement d'ordre, reformulations sans changement de sens, fautes de frappe corrigées, numéros de pages.
+
+Pour chaque changement :
+- "type" : "ajout" (présent seulement dans la version actuelle), "retrait" (présent seulement dans l'ancienne), "modification" ;
+- "importance" : "majeure" si cela peut changer une réponse à un QCM (valeur, critère, traitement, classification), sinon "mineure" ;
+- "sujet" : l'objet du changement, en quelques mots ;
+- "avant" : ce que disait l'ancienne version, recopié ou résumé fidèlement (null pour un ajout) ;
+- "apres" : ce que dit la version actuelle (null pour un retrait) ;
+- "page" : page de la version actuelle d'après « --- Page n --- », sinon null.
+
+Ne signale que des différences réellement présentes dans les deux textes ; n'invente rien. 40 changements au plus, les majeurs d'abord. S'il n'y a aucun changement de fond, mets "identique" à true et une liste vide.
+
+Réponds par :
+{"identique":false,"resume":"2 à 3 phrases : l'essentiel de ce qui a changé","changements":[{"type":"modification","importance":"majeure","sujet":"…","avant":"…","apres":"…","page":3}]}
+
+=== VERSION PLUS ANCIENNE ===
+${borner(ancien)}
+
+=== VERSION ACTUELLE ===
+${borner(actuel)}`;
 }

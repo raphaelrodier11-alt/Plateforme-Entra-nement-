@@ -12,7 +12,7 @@
  * remplacé.
  */
 import { Hono } from 'hono';
-import { MORCEAUX_MAX, TAILLE_MAX_FICHIER, mimeDepuisNom } from '../shared/depot';
+import { MORCEAUX_MAX, TAILLE_MAX_CHEMIN, TAILLE_MAX_FICHIER, mimeDepuisNom } from '../shared/depot';
 import type { Depot, RoleDepot } from '../shared/types';
 import { instructionEcriture, lireDoc } from './docs';
 import type { Env, Role } from './env';
@@ -24,7 +24,13 @@ const LONGUEUR_MAX = 1_000_000;
 const FORMAT_ID = /^[A-Za-z0-9-]{8,64}$/;
 
 function roleValide(v: unknown): v is RoleDepot {
-  return v === 'cours' || v === 'annales';
+  return v === 'cours' || v === 'annales' || v === 'anciens';
+}
+
+/** Chemin envoyé par l'app, ou à défaut le simple nom du fichier. */
+function cheminDe(corps: Record<string, unknown>, nom: string): string {
+  const chemin = typeof corps.chemin === 'string' ? corps.chemin.trim() : '';
+  return (chemin || nom).slice(0, TAILLE_MAX_CHEMIN);
 }
 
 function entierPositif(v: string | undefined): number | undefined {
@@ -45,14 +51,15 @@ depot.post('/commencer', async (c) => {
   if (taille > TAILLE_MAX_FICHIER) return c.json({ erreur: 'fichier_trop_gros' }, 413);
   if (!mimeDepuisNom(nom)) return c.json({ erreur: 'format_non_pris_en_charge' }, 415);
 
-  // Même nom et même rôle : c'est une nouvelle version du même fichier.
+  // Même chemin et même rôle : c'est une nouvelle version du même fichier.
   const existant = await c.env.DB
     .prepare(
       `SELECT id FROM docs
        WHERE collection = 'depots' AND deleted = 0
-         AND json_extract(data, '$.nom') = ?1 AND json_extract(data, '$.role') = ?2`,
+         AND COALESCE(json_extract(data, '$.chemin'), json_extract(data, '$.nom')) = ?1
+         AND json_extract(data, '$.role') = ?2`,
     )
-    .bind(nom, corps.role)
+    .bind(cheminDe(corps, nom), corps.role)
     .first<{ id: string }>();
   return c.json({ id: existant?.id ?? crypto.randomUUID(), v: Date.now() });
 });
@@ -102,6 +109,7 @@ depot.post('/:id/:v/terminer', async (c) => {
   const fiche: Depot = {
     id,
     nom,
+    chemin: cheminDe(corps, nom),
     role: corps.role,
     mimeType,
     taille,

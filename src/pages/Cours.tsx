@@ -2,7 +2,7 @@
  * Cours : toutes les matières et leurs chapitres, avec statut, avancement
  * et badges (nouveau, mise à jour en attente).
  */
-import { BookOpen, FilePen, Search, Sparkles, Star } from 'lucide-react';
+import { BookOpen, FilePen, RefreshCw, Search, Sparkles, Star } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { StatutChapitre } from '../../shared/progression';
@@ -101,6 +101,13 @@ export function Cours() {
                           {c.nouveau && (
                             <Pastille ton="accent" icone={Sparkles}>
                               Nouveau
+                            </Pastille>
+                          )}
+                          {(d.actualisationsParChapitre.get(c.id) ?? []).some((a) =>
+                            a.changements.some((x) => x.importance === 'majeure'),
+                          ) && (
+                            <Pastille ton="accent" icone={RefreshCw}>
+                              Actualisé
                             </Pastille>
                           )}
                           {c.majEnAttente && (
