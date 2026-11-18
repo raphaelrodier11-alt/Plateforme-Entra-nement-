@@ -6,7 +6,20 @@
 import { animationsActives } from './animations';
 
 export const BPM = 64;
-export const PERIODE_MS = 60_000 / BPM;
+/** Période courante d'un battement ; change avec `definirBpm` (retard / avance). */
+export let PERIODE_MS = 60_000 / BPM;
+let origine = 0;
+let bpmCible = BPM;
+
+/** Change le rythme sans saut de phase : le tracé accélère ou ralentit en douceur. */
+export function definirBpm(bpm: number): void {
+  const b = Math.max(40, Math.min(160, bpm));
+  if (Math.abs(b - bpmCible) < 1) return;
+  const phase = phaseA(Date.now());
+  bpmCible = b;
+  PERIODE_MS = 60_000 / b;
+  origine = Date.now() - phase * PERIODE_MS;
+}
 /** Instant du pic R dans le cycle (0 à 1). */
 export const PHASE_PIC = 0.3;
 
@@ -23,7 +36,7 @@ export function ecg(phase: number): number {
   );
 }
 
-export const phaseA = (instantMs: number): number => (((instantMs % PERIODE_MS) + PERIODE_MS) % PERIODE_MS) / PERIODE_MS;
+export const phaseA = (instantMs: number): number => ((((instantMs - origine) % PERIODE_MS) + PERIODE_MS) % PERIODE_MS) / PERIODE_MS;
 
 export interface Abonne {
   /** Dessine une image ; `maintenant` est l'instant en ms. */
