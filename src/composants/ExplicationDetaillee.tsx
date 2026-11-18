@@ -34,7 +34,7 @@ export function ExplicationDetaillee({ question, reponse }: { question: Question
         <div className="apparait rounded-2xl bg-surface-2 p-3.5">
           <div className="mb-2 flex items-center gap-2">
             <Docteur taille={28} />
-            <span className="flex-1 text-xs font-semibold text-texte-2">Explication détaillée du Dr Rodier</span>
+            <span className="flex-1 text-xs font-semibold text-texte-2">En profondeur, par le Dr Rodier</span>
             <Bouton variante="discret" icone={RefreshCw} className="min-h-8 px-2 text-xs" disabled={occupe} onClick={() => void demander()}>
               {occupe ? '…' : 'Refaire'}
             </Bouton>
@@ -43,7 +43,7 @@ export function ExplicationDetaillee({ question, reponse }: { question: Question
         </div>
       ) : (
         <Bouton icone={BookOpenCheck} disabled={occupe} onClick={() => void demander()}>
-          {occupe ? 'Le Dr Rodier rédige…' : 'Explication détaillée'}
+          {occupe ? 'Le Dr Rodier rédige…' : 'Aller en profondeur'}
         </Bouton>
       )}
       {erreur && (

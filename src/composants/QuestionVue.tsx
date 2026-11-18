@@ -262,7 +262,7 @@ export function QuestionVue(props: Props) {
       ) : (
         <Choix {...props} />
       )}
-      {props.correction && !props.solution && props.correction.nbErreurs > 0 && (
+      {props.correction && !props.solution && (
         <div className="mt-4">
           <ExplicationDetaillee question={question} reponse={props.reponse} />
         </div>

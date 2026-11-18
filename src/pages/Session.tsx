@@ -25,6 +25,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { corriger, scoreSession, type Correction } from '../../shared/bareme';
 import { estIncontournable, nbPartiels, suggererTypeErreur } from '../../shared/marqueurs';
 import type { Question, ReponseDonnee, Session, Tentative, TypeErreur } from '../../shared/types';
+import { ExportCopie } from '../composants/ExportCopie';
+import { ExpliquerToutes } from '../composants/ExpliquerToutes';
 import { QuestionVue } from '../composants/QuestionVue';
 import { Bouton, EtatVide, Jauge, LienBouton, Pastille, Puce, cx, nombre } from '../composants/ui';
 import { enregistrer, enregistrerPlusieurs } from '../db/sync';
@@ -505,6 +507,10 @@ function Resultat({
           <LienBouton to={estExamen(session) ? '/examens' : '/qcm'}>Terminer</LienBouton>
         </div>
       </section>
+
+      <ExportCopie session={session} questions={questions} tentatives={tentatives} noteSur20={score.noteSur20} points={score.points} total={score.total} />
+
+      {ratees.length > 0 && <ExpliquerToutes questions={ratees} />}
 
       <h2 className="mb-2 text-sm font-semibold text-texte-2">Détail des réponses</h2>
       <ul className="space-y-2">
