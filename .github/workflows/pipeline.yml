@@ -66,6 +66,8 @@ jobs:
         if: steps.config.outputs.pret == 'oui'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MOODLE_URL: ${{ secrets.MOODLE_URL }}
+          MOODLE_TOKEN: ${{ secrets.MOODLE_TOKEN }}
           PIPELINE_MODE: ${{ inputs.mode || 'auto' }}
           PIPELINE_BUDGET_MIN: '20'
         # Le travail est découpé en tranches de 20 minutes : à chaque tranche, les demandes de

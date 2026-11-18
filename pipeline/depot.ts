@@ -55,11 +55,15 @@ export function driveDepot(
 }
 
 /** Réunit le drive (s'il est connecté) et le dépôt en une seule source. */
-export function driveComposite(principal: Drive | undefined, depot: Drive): Drive {
+export function driveComposite(principal: Drive | undefined, depot: Drive, moodle?: Drive): Drive {
   return {
     lister: (dossierId) =>
-      dossierId.startsWith(PREFIXE) || !principal ? depot.lister(dossierId) : principal.lister(dossierId),
+      dossierId.startsWith('moodle:') && moodle
+        ? moodle.lister(dossierId)
+        : dossierId.startsWith(PREFIXE) || !principal ? depot.lister(dossierId) : principal.lister(dossierId),
     telecharger: (fichier) =>
-      estFichierDepot(fichier.id) || !principal ? depot.telecharger(fichier) : principal.telecharger(fichier),
+      fichier.id.startsWith('moodle:') && moodle
+        ? moodle.telecharger(fichier)
+        : estFichierDepot(fichier.id) || !principal ? depot.telecharger(fichier) : principal.telecharger(fichier),
   };
 }

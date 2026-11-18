@@ -292,6 +292,14 @@ Un petit médecin virtuel, accessible depuis l'onglet **Dr Rodier** :
 - **Entraînements** : une phrase (« 20 questions de génétique, difficile, 25 minutes, chapitre 3 ») remplit le formulaire (analyse locale, gratuite) ; tu vérifies puis tu lances. La bibliothèque permet de relancer (mélangé), de refaire seulement ses erreurs, de renommer et d'épingler.
 - **Cœur 3D** : modelé en code (muscle, graisse, coronaires, reflets). Il n'a pas la précision d'un modèle médical ; un fichier .glb pourra le remplacer plus tard.
 
+## Moodle de la fac
+
+Le pipeline lit ton Moodle en **lecture seule**, via l'API officielle et un jeton personnel (jamais ton mot de passe) :
+- les fichiers de tes cours sont importés comme ceux du Drive (le semestre et la matière sont déduits du nom du cours, ex. « 2025-2026 – S5 – UE Cardiologie ») ;
+- tes notifications Moodle (annonces des profs, devoirs) apparaissent dans les notifications de l'app, à chaque passage.
+
+Configuration : dans GitHub → Settings → Secrets → Actions, ajoute `MOODLE_URL` (adresse du site, sans `/` final) et `MOODLE_TOKEN` (jeton : Moodle → Préférences → Compte utilisateur → Clés de sécurité → « Moodle mobile web service »).
+
 ## Coûts
 
 **Tout est gratuit par défaut** : Cloudflare (Worker et base D1), GitHub Actions (dépôt

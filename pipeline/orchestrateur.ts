@@ -20,6 +20,7 @@ import type {
   Estimation,
   EtatPipeline,
   Fichier,
+  NotificationApp,
   Question,
   Reglages,
   Tache,
@@ -28,6 +29,7 @@ import { ECHECS_MAX, estArret, notifier, type Contexte } from './contexte';
 import { idDossier, type Drive } from './drive';
 import { comparer, finaliserAnciens } from './actualisations';
 import { DOSSIER_DEPOT, driveComposite, driveDepot, estFichierDepot, idFichierDepot } from './depot';
+import { DOSSIER_MOODLE, driveMoodle, notificationsMoodle } from './moodle';
 import { demandesATraiter, traiterDemandes } from './documents';
 import { entrainementsATraiter, traiterEntrainements } from './entrainements';
 import { ajouterQuestions, genererChapitres, traiterAnnales, verifierChapitres } from './generation';
@@ -60,6 +62,8 @@ export interface Dependances {
   mode: Mode;
   budgetMinutes: number;
   maintenant?: number;
+  /** Moodle de la fac (adresse + jeton personnel), facultatif. */
+  moodle?: { url: string; jeton: string };
 }
 
 export type Issue =
@@ -109,6 +113,7 @@ export async function executer(d: Dependances): Promise<Issue> {
   const driveConfigure = (!!dossierCours && !!dossierAnnales) || supplementaires.length > 0;
   const jeton = driveConfigure ? await d.stockage.jetonDrive() : undefined;
   const avecDrive = driveConfigure && !!jeton;
+  const avecMoodle = !!d.moodle;
   const depotsActuels = (): Depot[] => memoire.liste<Depot>('depots');
   const fichiersDepot = (): Fichier[] =>
     memoire.liste<Fichier>('fichiers').filter((f) => estFichierDepot(f.id) && f.etat !== 'supprime');
@@ -150,7 +155,22 @@ export async function executer(d: Dependances): Promise<Issue> {
     }
   }
 
-  if (!avecDrive && !avecDepot) {
+  // Notifications Moodle : relues à chaque passage (rapide), sans doublon.
+  if (d.moodle) {
+    try {
+      let nouvelles = 0;
+      for (const n of await notificationsMoodle(d.moodle.url, d.moodle.jeton)) {
+        if (memoire.lire('notifications', n.id)) continue;
+        await memoire.ecrire<NotificationApp>('notifications', { id: n.id, type: 'info', titre: `Moodle · ${n.titre}`, message: n.message, date: n.date });
+        nouvelles++;
+      }
+      if (nouvelles) journal(`Moodle : ${nouvelles} notification${nouvelles > 1 ? 's' : ''}`);
+    } catch (erreur) {
+      journal(`Moodle (notifications) : ${erreurPublique(erreur)}`);
+    }
+  }
+
+  if (!avecDrive && !avecDepot && !avecMoodle) {
     const sansConnexion = driveConfigure;
     journal(sansConnexion ? 'Google Drive non connecté : rien à faire' : 'Aucune source de fichiers : rien à faire');
     await majEtat({
@@ -203,6 +223,7 @@ export async function executer(d: Dependances): Promise<Issue> {
     drive: driveComposite(
       avecDrive ? d.creerDrive(jetonRenouvele(d.stockage, jeton!)) : undefined,
       driveDepot(depotsActuels, d.stockage),
+      d.moodle ? driveMoodle(d.moodle.url, d.moodle.jeton) : undefined,
     ),
     maintenant,
     lire: d.lire,
@@ -215,12 +236,12 @@ export async function executer(d: Dependances): Promise<Issue> {
     if (scanDu) {
       const deType = (type: 'cours' | 'annales' | 'anciens') => supplementaires.filter((x) => x.type === type).map((x) => x.dossier);
       await scanner(contexte, {
-        cours: [...(avecDrive && dossierCours ? [dossierCours] : []), ...(avecDrive ? deType('cours') : []), ...(avecDepot ? [DOSSIER_DEPOT.cours] : [])],
+        cours: [...(avecDrive && dossierCours ? [dossierCours] : []), ...(avecDrive ? deType('cours') : []), ...(avecDepot ? [DOSSIER_DEPOT.cours] : []), ...(avecMoodle ? [DOSSIER_MOODLE] : [])],
         annales: [...(avecDrive && dossierAnnales ? [dossierAnnales] : []), ...(avecDrive ? deType('annales') : []), ...(avecDepot ? [DOSSIER_DEPOT.annales] : [])],
         anciens: [...(avecDrive && dossierAnciens ? [dossierAnciens] : []), ...(avecDrive ? deType('anciens') : []), ...(avecDepot ? [DOSSIER_DEPOT.anciens] : [])],
-        noms: Object.fromEntries(supplementaires.map((x) => [x.dossier, x.nom])),
-        tolerants: supplementaires.map((x) => x.dossier),
-        garde: avecDrive,
+        noms: { ...Object.fromEntries(supplementaires.map((x) => [x.dossier, x.nom])), [DOSSIER_MOODLE]: 'Moodle' },
+        tolerants: [...supplementaires.map((x) => x.dossier), DOSSIER_MOODLE],
+        garde: avecDrive || avecMoodle,
       });
       await majEtat({ dernierScan: maintenant });
       await cloreTaches('verifier_drive');

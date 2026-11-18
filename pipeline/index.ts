@@ -5,6 +5,7 @@
  *  - APP_URL            adresse de l'application (https://…)
  *  - PIPELINE_KEY       clé du pipeline, connue aussi du serveur
  *  - GEMINI_API_KEY     clé de l'API Gemini (nécessaire à la génération)
+ *  - MOODLE_URL / MOODLE_TOKEN  Moodle de la fac (facultatif) : adresse du site et jeton personnel
  *  - PIPELINE_MODE      « auto » (défaut) ou « scan » pour forcer la vérification du drive
  *  - PIPELINE_BUDGET_MIN durée maximale d'une tranche de passage, en minutes (défaut : 50)
  */
@@ -25,6 +26,8 @@ async function principal(): Promise<void> {
     return;
   }
   const cleGemini = process.env.GEMINI_API_KEY?.trim();
+  const moodleUrl = process.env.MOODLE_URL?.trim();
+  const moodleJeton = process.env.MOODLE_TOKEN?.trim();
   const mode: Mode = process.env.PIPELINE_MODE === 'scan' ? 'scan' : 'auto';
 
   const issue = await executer({
@@ -32,6 +35,7 @@ async function principal(): Promise<void> {
     creerDrive: driveGoogle,
     creerIa: cleGemini ? (options) => iaGemini({ cle: cleGemini, ...options }) : undefined,
     lire: lireFichier,
+    ...(moodleUrl && moodleJeton ? { moodle: { url: moodleUrl, jeton: moodleJeton } } : {}),
     mode,
     budgetMinutes: Number(process.env.PIPELINE_BUDGET_MIN) || 50,
   });
