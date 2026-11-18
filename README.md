@@ -283,6 +283,15 @@ Un petit médecin virtuel, accessible depuis l'onglet **Dr Rodier** :
 - **Calendrier iPhone** : lecture seule (Planning → lien `webcal://` du calendrier public).
 - **Passages de l'import** : tranches de 20 minutes enchaînées jusqu'à 5 h 20 ; les demandes de l'app passent en premier à chaque tranche.
 
+## Révision, alertes et rythme
+
+- **Planning adaptatif** : le temps se répartit ≈ 60 % points faibles / 25 % moyens / 15 % points forts, à partir de ta maîtrise réelle (ce que tu déclares, fusionné avec tes résultats).
+- **Révision pure** (page Planning) : tu choisis une période et éventuellement une matière ; le planning n'y propose que du carnet « À revoir », fiches, annales, examen blanc chronométré, interro orale et flashcards, avec des cases à cocher.
+- **Alerte J-7 / J-3 / J-1** : bandeau à l'ouverture avec les chapitres les plus faibles et les notions à revoir ; il se ferme jusqu'au palier suivant.
+- **ECG de fond** : son rythme (55 à 130 bpm) suit ton avance ou ton retard — séances réellement faites sur 14 jours et maîtrise de la matière du prochain partiel comparée à ce qui est attendu.
+- **Entraînements** : une phrase (« 20 questions de génétique, difficile, 25 minutes, chapitre 3 ») remplit le formulaire (analyse locale, gratuite) ; tu vérifies puis tu lances. La bibliothèque permet de relancer (mélangé), de refaire seulement ses erreurs, de renommer et d'épingler.
+- **Cœur 3D** : modelé en code (muscle, graisse, coronaires, reflets). Il n'a pas la précision d'un modèle médical ; un fichier .glb pourra le remplacer plus tard.
+
 ## Coûts
 
 **Tout est gratuit par défaut** : Cloudflare (Worker et base D1), GitHub Actions (dépôt
