@@ -22,6 +22,7 @@ import {
   nombre,
   pourcent,
 } from '../composants/ui';
+import { ExportPdfMatiere } from '../composants/ExportPdf';
 import { useDonnees } from '../etat/donnees';
 import { couleurMatiere } from '../lib/couleurs';
 
@@ -298,6 +299,10 @@ export function CoursMatiere() {
         sousTitre={`${chapitres.length} chapitre${chapitres.length > 1 ? 's' : ''} · ${sm?.nbAcquis ?? 0} acquis · ${pourcent(sm?.avancement ?? 0)} d'avancement${prediction ? ` · note prévue ${nombre(prediction.note, 1)}/20` : ''}`}
       />
       <div className="mb-4 h-1 w-24 rounded-full" style={{ background: c.accent }} aria-hidden />
+
+      <div className="mb-4">
+        <ExportPdfMatiere matiere={matiere} chapitres={d.chapitresParMatiere.get(matiere.id) ?? []} />
+      </div>
 
       {voisines.length > 1 && (
         <div className="mb-4 flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Autres matières du semestre">

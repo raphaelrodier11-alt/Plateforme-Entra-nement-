@@ -26,6 +26,7 @@ import type { Actualisation, BlocFiche, Changement } from '../../shared/types';
 import { Suggestions } from '../composants/Suggestions';
 import { NotesChapitre } from '../fiches/Annotations';
 import { CarteMentale } from '../fiches/CarteMentale';
+import { ExportPdfChapitre } from '../composants/ExportPdf';
 import { Complements } from '../fiches/Complements';
 import {
   Bouton,
@@ -286,9 +287,10 @@ export function PageChapitre() {
       {onglet === 'fiche' &&
         (fiche ? (
           <>
-            <div className="mb-3 flex justify-end print:hidden">
+            <div className="mb-3 flex flex-wrap justify-end gap-1 print:hidden">
+              <ExportPdfChapitre chapitre={chapitre} />
               <Bouton variante="discret" icone={Printer} className="min-h-9 px-3" onClick={() => window.print()}>
-                Exporter en PDF
+                Imprimer
               </Bouton>
             </div>
             <RenduFiche fiche={fiche} />
