@@ -780,6 +780,8 @@ export interface Entrainement {
   titre: string;
   regles: ReglesEntrainement;
   statut: 'en_attente' | 'en_cours' | 'pret' | 'erreur';
+  /** Épinglé en haut de la bibliothèque. */
+  epingle?: boolean;
   /** Questions déjà prêtes (elles sont utilisables avant la fin de la génération). */
   questionIds: string[];
   message?: string;

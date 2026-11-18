@@ -3,9 +3,10 @@
  * difficulté, nombre, pièges, chrono) et tu ajoutes tes consignes ; les
  * questions sont écrites en arrière-plan et utilisables dès qu'elles arrivent.
  */
-import { Dumbbell, Play, Plus, Sparkles, Trash2 } from 'lucide-react';
+import { Dumbbell, Pencil, Pin, PinOff, Play, Plus, RotateCcw, Sparkles, Trash2, Wand2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { comprendrePhrase, type ReglesComprises } from '../../shared/phraseEntrainement';
 import type { Entrainement, ReglesEntrainement, TypeQuestion } from '../../shared/types';
 import { Bouton, Carte, EtatVide, Jauge, Pastille, Puce, STYLE_CHAMP, TitrePage } from '../composants/ui';
 import { enregistrer, supprimer } from '../db/sync';
@@ -57,10 +58,66 @@ export function Entrainements() {
   const [minutes, setMinutes] = useState(30);
   const [consignes, setConsignes] = useState('');
   const [envoye, setEnvoye] = useState(false);
+  const [phrase, setPhrase] = useState('');
+  const [analyse, setAnalyse] = useState<ReglesComprises | undefined>();
 
   const chapitres = (matiereId ? d.chapitresParMatiere.get(matiereId) : d.chapitres) ?? [];
   const bascule = <T,>(liste: T[], x: T): T[] => (liste.includes(x) ? liste.filter((y) => y !== x) : [...liste, x]);
-  const entrainements = [...d.entrainements].sort((a, b) => b.creeLe - a.creeLe);
+  const entrainements = [...d.entrainements].sort((a, b) => Number(!!b.epingle) - Number(!!a.epingle) || b.creeLe - a.creeLe);
+
+  // La phrase remplit le formulaire ; rien n'est lancé avant ta vérification.
+  const comprendre = () => {
+    if (!phrase.trim()) return;
+    const r = comprendrePhrase(phrase, d.matieres.filter((m) => (d.chapitresParMatiere.get(m.id) ?? []).length > 0), d.chapitres);
+    const g = r.regles;
+    setMatiereId(g.matiereId);
+    setChapitreIds(g.chapitreIds);
+    setTypes(g.types);
+    setCas(g.casCliniques);
+    setDifficulte(g.difficulte);
+    setNombre(g.nombre);
+    setPieges(g.pieges);
+    setChrono(!!g.chronoMin);
+    if (g.chronoMin) setMinutes(g.chronoMin);
+    setConsignes(g.consignes ?? '');
+    setAnalyse(r);
+  };
+
+  const melanger = <T,>(liste: T[]): T[] => {
+    const a = [...liste];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j]!, a[i]!];
+    }
+    return a;
+  };
+
+  const relancer = async (e: Entrainement, seulementErreurs: boolean) => {
+    let questions = e.questionIds.map((id) => d.questionParId.get(id)).filter((q): q is NonNullable<typeof q> => !!q);
+    if (seulementErreurs) {
+      questions = questions.filter((q) => {
+        const etat = d.etats.get(q.id);
+        return !!etat && etat.nbTentatives > 0 && (etat.dansListeErreurs || etat.derniersPoints < 1);
+      });
+    }
+    if (questions.length === 0) return;
+    const id = await demarrerSession({
+      type: 'qcm',
+      titre: `${e.titre}${seulementErreurs ? ' — mes erreurs' : ''}`,
+      questions: melanger(questions),
+      matiereId: e.regles.matiereId,
+      chapitreIds: e.regles.chapitreIds.length ? e.regles.chapitreIds : undefined,
+      ...(e.regles.chronoMin ? { dureeLimiteMs: e.regles.chronoMin * 60_000 } : {}),
+    });
+    navigate(`/session/${id}`);
+  };
+
+  const renommer = async (e: Entrainement) => {
+    const nom = window.prompt('Nouveau nom de l’entraînement', e.titre)?.trim();
+    if (nom) await enregistrer('entrainements', { ...e, titre: nom.slice(0, 80), majLe: Date.now() });
+  };
+
+  const epingler = (e: Entrainement) => enregistrer('entrainements', { ...e, epingle: !e.epingle, majLe: Date.now() });
 
   const creer = async () => {
     const n = Math.min(MAX, Math.max(1, Math.round(nombre) || 1));
@@ -132,6 +189,35 @@ export function Entrainements() {
   return (
     <div className="space-y-4">
       <TitrePage titre="Entraînements" sousTitre="Demande l'entraînement que tu veux, avec tes règles. Autant de questions que tu veux." />
+
+      <Carte titre="Dis-le avec une phrase">
+        <form
+          className="flex flex-col gap-2 sm:flex-row"
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            comprendre();
+          }}
+        >
+          <input
+            value={phrase}
+            onChange={(ev) => setPhrase(ev.target.value)}
+            maxLength={300}
+            aria-label="Décris ton entraînement"
+            placeholder="20 questions de génétique, niveau difficile, 25 minutes, uniquement le chapitre 3"
+            className={`${STYLE_CHAMP} min-w-0 flex-1`}
+          />
+          <Bouton type="submit" variante="primaire" icone={Wand2} disabled={!phrase.trim()}>Remplir le formulaire</Bouton>
+        </form>
+        {analyse && (
+          <div role="status" className="mt-3 rounded-xl border border-bord bg-surface-2 p-3 text-sm">
+            <p className="font-medium">J'ai compris — vérifie ci-dessous puis lance :</p>
+            <ul className="mt-1 flex flex-wrap gap-1.5">
+              {analyse.compris.map((c) => <li key={c}><Pastille ton="accent">{c}</Pastille></li>)}
+            </ul>
+            {analyse.avertissements.map((a) => <p key={a} className="mt-1.5 text-xs text-alerte">{a}</p>)}
+          </div>
+        )}
+      </Carte>
 
       <Carte titre="Nouvel entraînement">
         <div className="space-y-5">
@@ -257,7 +343,7 @@ export function Entrainements() {
         </div>
       </Carte>
 
-      <Carte titre="Mes entraînements">
+      <Carte titre="Ma bibliothèque d'entraînements">
         {entrainements.length === 0 ? (
           <p className="text-sm text-texte-2">Aucun entraînement pour l'instant.</p>
         ) : (
@@ -284,7 +370,11 @@ export function Entrainements() {
                     <Bouton variante="primaire" icone={Play} className="min-h-9" disabled={prets === 0} onClick={() => void lancer(e)}>
                       {e.statut === 'pret' ? 'Lancer' : `Lancer (${prets} prêtes)`}
                     </Bouton>
+                    <Bouton icone={RotateCcw} className="min-h-9" disabled={prets === 0} onClick={() => void relancer(e, false)}>Relancer (mélangé)</Bouton>
+                    <Bouton className="min-h-9" disabled={prets === 0} onClick={() => void relancer(e, true)}>Mes erreurs</Bouton>
                     <Bouton icone={Plus} className="min-h-9" onClick={() => void ajouter(e, 20)}>20 de plus</Bouton>
+                    <Bouton variante="discret" icone={Pencil} className="min-h-9" aria-label={`Renommer ${e.titre}`} onClick={() => void renommer(e)}>Renommer</Bouton>
+                    <Bouton variante="discret" icone={e.epingle ? PinOff : Pin} className="min-h-9" onClick={() => void epingler(e)}>{e.epingle ? 'Désépingler' : 'Épingler'}</Bouton>
                     <Bouton variante="discret" icone={Trash2} className="min-h-9" aria-label={`Supprimer ${e.titre}`} onClick={() => void retirer(e)}>Supprimer</Bouton>
                   </div>
                 </li>
