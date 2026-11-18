@@ -26,6 +26,7 @@ import { corriger, scoreSession, type Correction } from '../../shared/bareme';
 import { estIncontournable, nbPartiels, suggererTypeErreur } from '../../shared/marqueurs';
 import type { Question, ReponseDonnee, Session, Tentative, TypeErreur } from '../../shared/types';
 import { ExportCopie } from '../composants/ExportCopie';
+import { ContexteQuestion } from '../composants/PublierContexte';
 import { ExpliquerToutes } from '../composants/ExpliquerToutes';
 import { QuestionVue } from '../composants/QuestionVue';
 import { Bouton, EtatVide, Jauge, LienBouton, Pastille, Puce, cx, nombre } from '../composants/ui';
@@ -251,6 +252,8 @@ function Entrainement({
             <Bouton onClick={() => void valider({})}>Je ne sais pas</Bouton>
           </div>
         )}
+
+        {rendu && <ContexteQuestion question={question} reponse={rendu.tentative.reponse} />}
 
         {rendu && (
           <div className="apparait mt-5 space-y-4">
@@ -511,6 +514,10 @@ function Resultat({
       <ExportCopie session={session} questions={questions} tentatives={tentatives} noteSur20={score.noteSur20} points={score.points} total={score.total} />
 
       {ratees.length > 0 && <ExpliquerToutes questions={ratees} />}
+
+      {ouverte && questions.find((q) => q.id === ouverte) && (
+        <ContexteQuestion question={questions.find((q) => q.id === ouverte)!} reponse={parQuestion.get(ouverte)?.reponse} />
+      )}
 
       <h2 className="mb-2 text-sm font-semibold text-texte-2">Détail des réponses</h2>
       <ul className="space-y-2">

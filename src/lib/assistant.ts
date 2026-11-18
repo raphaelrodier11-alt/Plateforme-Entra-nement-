@@ -82,7 +82,12 @@ export function nouvelleConversation(matiereId?: string): Conversation {
 }
 
 /** Pose une question : le Dr Rodier répond et la conversation est enregistrée. */
-export async function poserQuestion(d: Donnees, conversation: Conversation, question: string): Promise<Conversation> {
+export async function poserQuestion(
+  d: Donnees,
+  conversation: Conversation,
+  question: string,
+  options: { contexteExtra?: string; etiquette?: string } = {},
+): Promise<Conversation> {
   const texte = question.trim().slice(0, LIMITES_ASSISTANT.message);
   const matiere = conversation.matiereId ? d.matiereParId.get(conversation.matiereId) : undefined;
   const avant = conversation.messages.filter((m) => m.role === 'user').slice(-2).map((m) => m.texte).join(' ');
@@ -103,6 +108,7 @@ export async function poserQuestion(d: Donnees, conversation: Conversation, ques
     ...conversation,
     titre: conversation.messages.length === 0 ? titreConversation(texte) : conversation.titre,
     messages: [...conversation.messages, messageQuestion],
+    ...(options.etiquette && !conversation.contexte ? { contexte: options.etiquette } : {}),
     majLe: maintenant,
   };
   await enregistrer('conversations', enCours);
@@ -131,7 +137,7 @@ export async function poserQuestion(d: Donnees, conversation: Conversation, ques
   const reponse = await appeler({
     mode: 'discussion',
     matiere: matiere?.nom,
-    contexte: assemblerContexte(extraits),
+    contexte: `${options.contexteExtra ? `=== CE QUE L'ÉTUDIANT A SOUS LES YEUX ===\n${options.contexteExtra.slice(0, 6000)}\n\n=== EXTRAITS DE SES COURS ===\n` : ''}${assemblerContexte(extraits)}`,
     messages: historique.map((m) => ({ role: m.role, texte: m.texte })),
   });
 
@@ -391,4 +397,25 @@ export async function expliquerToutes(
     }
   }
   return { faites };
+}
+
+/** Ce que l'étudiant a sous les yeux sur une correction : question, propositions, sa réponse, les bonnes réponses. */
+export function descriptionQuestion(question: Question, reponse: ReponseDonnee | undefined): string {
+  const lettre = (i: number) => String.fromCharCode(65 + i);
+  const l: string[] = [`Question : ${question.enonce}`];
+  if (question.propositions?.length) {
+    question.propositions.forEach((p, i) => l.push(`${lettre(i)}. ${p.texte}${p.correcte ? '  (juste)' : ''}`));
+    if (reponse) {
+      const cochees = question.type === 'vrai_faux'
+        ? question.propositions.map((p, i) => (reponse.jugements?.[p.id] === undefined ? '' : `${lettre(i)}=${reponse.jugements[p.id] ? 'vrai' : 'faux'}`)).filter(Boolean)
+        : question.propositions.map((p, i) => ((reponse.cochees ?? []).includes(p.id) ? lettre(i) : '')).filter(Boolean);
+      l.push(`Réponse de l'étudiant : ${cochees.join(', ') || 'aucune'}`);
+    }
+  } else if (question.trous?.length) {
+    l.push(`Attendu : ${question.trous.map((t) => `${t.id} = ${t.reponses[0] ?? ''}`).join(' ; ')}`);
+    if (reponse?.textes) l.push(`Réponse de l'étudiant : ${Object.entries(reponse.textes).map(([k, v]) => `${k} = ${v}`).join(' ; ')}`);
+  }
+  if (question.explication) l.push(`Explication du corrigé : ${question.explication}`);
+  if (question.rappel) l.push(`Rappel de cours : ${question.rappel}`);
+  return l.join('\n');
 }

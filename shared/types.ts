@@ -685,6 +685,8 @@ export interface Conversation {
   id: string;
   /** Matière du bot ; absent pour une conversation générale. */
   matiereId?: string;
+  /** Page ou question depuis laquelle la conversation a commencé (bot flottant). */
+  contexte?: string;
   titre: string;
   messages: MessageChat[];
   /** Interrogation orale : chapitre interrogé et nombre de questions. */

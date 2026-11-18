@@ -4,6 +4,7 @@
  */
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
+import { BotFlottant } from './composants/BotFlottant';
 import { BandeauEcg, FondEcg } from './composants/Ecg';
 import { Navigation } from './composants/Navigation';
 import {
@@ -154,6 +155,7 @@ export function App() {
           </Routes>
         </main>
       </div>
+      <BotFlottant />
     </FournisseurDonnees>
   );
 }

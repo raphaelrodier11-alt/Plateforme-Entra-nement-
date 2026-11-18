@@ -27,6 +27,7 @@ import { Suggestions } from '../composants/Suggestions';
 import { NotesChapitre } from '../fiches/Annotations';
 import { CarteMentale } from '../fiches/CarteMentale';
 import { ExportPdfChapitre } from '../composants/ExportPdf';
+import { ContexteChapitre } from '../composants/PublierContexte';
 import { Complements } from '../fiches/Complements';
 import {
   Bouton,
@@ -265,6 +266,7 @@ export function PageChapitre() {
         </section>
       )}
 
+      <ContexteChapitre chapitre={chapitre} />
       <div className="mb-4 print:hidden">
         <Suggestions chapitreId={chapitre.id} max={2} titre="Le Dr Rodier te propose" />
       </div>

@@ -24,6 +24,7 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { LIBELLE_TYPE_DOCUMENT, noteInterro } from '../../shared/assistant';
 import type { Conversation, DemandeDocument, DocumentBiblio, Scene3D, TypeDocument } from '../../shared/types';
+import { Bulle } from '../composants/Bulle';
 import { Docteur } from '../composants/Docteur';
 import { BoutonMicro, lectureDisponible, parler, silence } from '../composants/Voix';
 import { Markdown } from '../composants/Markdown';
@@ -338,22 +339,6 @@ function Discussion() {
           Le Dr Rodier peut se tromper : le cours officiel et tes enseignants font foi.
         </p>
       </div>
-    </div>
-  );
-}
-
-function Bulle({ role, children }: { role: 'user' | 'assistant'; children: React.ReactNode }) {
-  if (role === 'user') {
-    return (
-      <div className="apparait flex justify-end">
-        <div className="max-w-[88%] rounded-2xl rounded-br-md bg-accent px-3.5 py-2.5 text-white">{children}</div>
-      </div>
-    );
-  }
-  return (
-    <div className="apparait flex items-start gap-2.5">
-      <Docteur taille={32} className="mt-0.5 shrink-0" />
-      <div className="min-w-0 max-w-[92%] rounded-2xl rounded-tl-md bg-surface-2 px-3.5 py-2.5">{children}</div>
     </div>
   );
 }
