@@ -273,6 +273,16 @@ Un petit médecin virtuel, accessible depuis l'onglet **Dr Rodier** :
 
 **Apparence.** Réglages → Apparence : sombre, clair ou automatique, réglable séparément sur chaque appareil.
 
+## Drives supplémentaires, entraînements sur mesure, PDF, cœur
+
+- **Autres Drives** (Réglages) : ajoute autant de Drives que tu veux, avec le nom et le type (cours, annales, anciennes versions) de ton choix. Lecture seule ; la matière vient des dossiers ; les fichiers gardent le nom du Drive. Un Drive inaccessible est signalé sans bloquer le reste.
+- **Entraînements** : formulaire de règles (matière, chapitres, types, cas cliniques, difficulté, nombre jusqu'à 500, pièges, chrono) et consignes libres. Les questions sont écrites en arrière-plan par le pipeline (par lots, avec le quota gratuit), utilisables au fil de l'eau, avec une notification à la fin. Elles n'entrent ni dans l'avancement des chapitres ni dans les examens blancs tant qu'elles n'ont pas été travaillées.
+- **Explications d'erreurs détaillées** : proposition par proposition, avec cours et connaissances générales distingués, gardées avec la question ; « Expliquer toutes mes erreurs » dans la page Erreurs.
+- **PDF** : vrai fichier A4 généré sur l'appareil, pour un chapitre ou une matière (chapitres cochés).
+- **Cœur du compte à rebours** (accueil) : saisis tes dates d'examen ; le cœur 3D grossit, bat plus vite et plus fort et le sang circule plus vite à l'approche du partiel (≈ 58 bpm au loin, 122 bpm le jour J). Les autres partiels sont listés dessous.
+- **Calendrier iPhone** : lecture seule (Planning → lien `webcal://` du calendrier public).
+- **Passages de l'import** : tranches de 20 minutes enchaînées jusqu'à 5 h 20 ; les demandes de l'app passent en premier à chaque tranche.
+
 ## Coûts
 
 **Tout est gratuit par défaut** : Cloudflare (Worker et base D1), GitHub Actions (dépôt

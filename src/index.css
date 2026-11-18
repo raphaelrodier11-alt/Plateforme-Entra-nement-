@@ -160,6 +160,15 @@ html.bat .pouls-logo {
   filter: drop-shadow(0 0 7px color-mix(in oklab, var(--color-serie-3) 80%, transparent));
 }
 
+/* Cœur dessiné de secours (sans WebGL) : battement lub-dub. */
+@keyframes coeur-bat {
+  0%, 100% { transform: scale(1); }
+  10% { transform: scale(1.1); }
+  22% { transform: scale(1.02); }
+  33% { transform: scale(1.06); }
+  50% { transform: scale(1); }
+}
+
 @keyframes apparition {
   from {
     opacity: 0;

@@ -64,11 +64,13 @@ export function suggerer(e: EntreeSuggestions): Suggestion[] {
     suggestions.push({ ...s, id: `${s.type}:${cible}:${variante}` });
   };
 
-  // Partiel proche : une synthèse de la matière.
-  for (const ex of e.examens) {
+  // Partiel proche : une synthèse de la matière (seulement pour le plus proche de chaque matière).
+  const dejaExamen = new Set<string>();
+  for (const ex of [...e.examens].sort((a, b) => a.date.localeCompare(b.date))) {
     const jours = joursEntre(e.aujourdHui, ex.date);
     const m = matiere.get(ex.matiereId);
-    if (!m || jours < 0 || jours > JOURS_EXAMEN) continue;
+    if (!m || jours < 0 || jours > JOURS_EXAMEN || dejaExamen.has(m.id)) continue;
+    dejaExamen.add(m.id);
     ajouter(
       {
         titre: `Synthèse de ${m.nom} avant le partiel`,

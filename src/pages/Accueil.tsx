@@ -25,6 +25,7 @@ import { LIBELLE_TACHE, lancerRevisionErreurs, lancerTache } from '../lib/action
 import { Docteur } from '../composants/Docteur';
 import { MoniteurEcg } from '../composants/Ecg';
 import { accroche } from '../../shared/motivation';
+import { CoeurPartiel } from '../composants/CoeurPartiel';
 import { CompteARebours } from '../composants/CompteARebours';
 import { ProgressionImport } from '../composants/ProgressionImport';
 import { QuestionDuJour } from '../composants/QuestionDuJour';
@@ -146,6 +147,8 @@ export function Accueil() {
       </Link>
 
       <ProgressionImport discret />
+
+      <CoeurPartiel />
 
       <CompteARebours />
 
