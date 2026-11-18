@@ -117,6 +117,7 @@ depot.post('/:id/:v/terminer', async (c) => {
     v,
     ajouteLe: ancien?.ajouteLe ?? Date.now(),
     modifieLe: new Date(v).toISOString(),
+    ...(typeof corps.chapitreId === 'string' && /^[\w.:-]{1,200}$/.test(corps.chapitreId) ? { chapitreId: corps.chapitreId } : {}),
   };
   await c.env.DB.batch([
     instructionEcriture(c.env.DB, { collection: 'depots', id, data: fiche, majLe: Date.now() }),

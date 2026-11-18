@@ -24,7 +24,7 @@ import { Anneau, Tuile } from '../graphiques/Graphiques';
 import { LIBELLE_TACHE, lancerRevisionErreurs, lancerTache } from '../lib/actions';
 import { Docteur } from '../composants/Docteur';
 import { MoniteurEcg } from '../composants/Ecg';
-import { motDuJour, salutation } from '../../shared/motivation';
+import { accroche } from '../../shared/motivation';
 import { CompteARebours } from '../composants/CompteARebours';
 import { ProgressionImport } from '../composants/ProgressionImport';
 import { QuestionDuJour } from '../composants/QuestionDuJour';
@@ -86,6 +86,13 @@ export function Accueil() {
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 3);
   const { profil } = d;
+  const prochainExamen = examens[0];
+  const message = accroche(new Date(d.maintenant), {
+    prenom: d.reglages.prenom,
+    examen: prochainExamen ? { jours: joursEntre(aujourdHui, prochainExamen.date), matiere: d.matiereParId.get(prochainExamen.matiereId)?.nom ?? prochainExamen.titre } : undefined,
+    serie: profil.series.courante,
+    erreursDues: d.erreursDues.length,
+  });
   const tentativesDuJour = d.tentatives.filter((t) => cleJour(t.date) === aujourdHui).length;
 
   return (
@@ -99,12 +106,12 @@ export function Accueil() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-sm text-texte-2 first-letter:uppercase">{jourLisible(aujourdHui)}</p>
-              <h1 className="text-3xl font-semibold tracking-tight">{salutation(new Date(d.maintenant))}</h1>
+              <h1 className="max-w-xl text-2xl leading-tight font-semibold tracking-tight sm:text-3xl">{message.titre}</h1>
             </div>
             {d.aDesDonneesDemo && <Pastille ton="alerte">Données de démonstration</Pastille>}
           </div>
           <p className="max-w-lg text-base leading-snug text-texte" aria-label="Mot du jour">
-            « {motDuJour(new Date(d.maintenant))} »
+            {message.phrase}
           </p>
         </div>
       </header>
@@ -371,7 +378,7 @@ export function Accueil() {
             const s = d.statsMatiere.get(m.id);
             return (
               <li key={m.id} className="min-w-0">
-                <Link to={`/cours#${m.id}`} className="block">
+                <Link to={`/cours/${m.id}`} className="block">
                   <div className="mb-1 flex items-baseline justify-between gap-3 text-sm">
                     <span className="truncate">{m.nom}</span>
                     <span className="chiffres shrink-0 text-texte-2">{pourcent(s?.avancement ?? 0)}</span>

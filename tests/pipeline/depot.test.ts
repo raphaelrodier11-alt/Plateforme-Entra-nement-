@@ -115,4 +115,29 @@ describe('pipeline : fichiers envoyés depuis l\'app (sans Google Drive)', () =>
     expect(await passer()).not.toBe('erreur');
     expect(stockage.un<Fichier>('fichiers', 'depot:depot-cours-0001')!.etat).toBe('supprime');
   });
+
+  it('un complément envoyé pour un chapitre y est rattaché sans classement, et le chapitre est régénéré', async () => {
+    await stockage.deposer({ id: 'depot-cours-0001', nom: 'Insuffisance cardiaque.pdf', role: 'cours', contenu: COURS, modifieLe: '2026-11-16T07:00:00.000Z' });
+    await passer();
+    await stockage.ecrire('taches', [{ id: 't', type: 'generation_complete', statut: 'en_attente', creeLe: maintenant, majLe: maintenant } satisfies Tache]);
+    maintenant += 3_600_000;
+    await passer();
+    const chapitre = stockage.liste<Chapitre>('chapitres').find((c) => c.titre === 'Insuffisance cardiaque')!;
+    expect(chapitre.version).toBe(1);
+
+    await stockage.deposer({
+      id: 'depot-compl-0001', nom: 'Complément NYHA.pdf', chemin: `Compléments/${chapitre.id}/Complément NYHA.pdf`, role: 'cours',
+      contenu: `Complément NYHA, page 1. ${'Précisions sur la classification NYHA et ses stades. '.repeat(8)}`, modifieLe: '2026-11-17T09:00:00.000Z', chapitreId: chapitre.id,
+    });
+    maintenant += 3_600_000;
+    expect(await passer()).toBe('termine');
+
+    const apres = stockage.un<Chapitre>('chapitres', chapitre.id)!;
+    expect(apres.fichierIds).toContain('depot:depot-compl-0001');
+    expect(apres.version).toBe(2);
+    const fichier = stockage.un<Fichier>('fichiers', 'depot:depot-compl-0001')!;
+    expect(fichier).toMatchObject({ role: 'cours', chapitreId: chapitre.id, matiereId: chapitre.matiereId, etat: 'a_jour' });
+    // Aucun nouveau chapitre n'a été créé pour le complément.
+    expect(stockage.liste<Chapitre>('chapitres')).toHaveLength(1);
+  });
 });

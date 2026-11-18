@@ -87,6 +87,8 @@ export interface Fichier {
   nbPages?: number;
   matiereId?: string;
   chapitreId?: string;
+  /** Chapitre choisi par l'utilisateur à l'envoi (complément) : le classement par IA est sauté. */
+  chapitreImpose?: string;
   partielId?: string;
   lien?: string;
   /** Nombre d'échecs de traitement ; au-delà de 3, le fichier est laissé de côté. */
@@ -505,6 +507,8 @@ export interface Evenement {
 
 export interface Reglages {
   id: 'principal';
+  /** Prénom affiché dans le message d'accueil. */
+  prenom?: string;
   /** Lien .ics public du calendrier iCloud. */
   icsUrl?: string;
   motsClesExamen: string[];
@@ -604,6 +608,8 @@ export interface Depot {
   ajouteLe: number;
   /** Date de la version actuelle, au format ISO (sert de « date de modification »). */
   modifieLe: string;
+  /** Complément envoyé pour un chapitre précis : il y est rattaché sans passer par le classement. */
+  chapitreId?: string;
 }
 
 // ---------------------------------------------------------------------------

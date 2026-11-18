@@ -46,7 +46,7 @@ export class StockageMemoire implements Stockage {
   }
 
   /** Simule un envoi depuis l'app : un seul morceau, avec sa fiche. */
-  async deposer(depot: { id: string; nom: string; chemin?: string; role: 'cours' | 'annales' | 'anciens'; contenu: string; modifieLe: string }): Promise<void> {
+  async deposer(depot: { id: string; nom: string; chemin?: string; role: 'cours' | 'annales' | 'anciens'; contenu: string; modifieLe: string; chapitreId?: string }): Promise<void> {
     this.morceaux.set(`${depot.id}/0`, Buffer.from(depot.contenu).toString('base64'));
     await this.ecrire('depots', [
       {
@@ -60,6 +60,7 @@ export class StockageMemoire implements Stockage {
         v: Date.parse(depot.modifieLe),
         ajouteLe: Date.parse(depot.modifieLe),
         modifieLe: depot.modifieLe,
+        ...(depot.chapitreId ? { chapitreId: depot.chapitreId } : {}),
       },
     ]);
   }

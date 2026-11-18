@@ -19,7 +19,7 @@ import { Accueil } from './pages/Accueil';
 import { Assistant } from './pages/Assistant';
 import { PageChapitre } from './pages/Chapitre';
 import { Corrections } from './pages/Corrections';
-import { Cours } from './pages/Cours';
+import { Cours, CoursMatiere } from './pages/Cours';
 import { Erreurs } from './pages/Erreurs';
 import { Examens } from './pages/Examens';
 import { Fichiers } from './pages/Fichiers';
@@ -134,6 +134,7 @@ export function App() {
           <Routes>
               <Route path="/" element={<Accueil />} />
               <Route path="/cours" element={<Cours />} />
+              <Route path="/cours/:matiereId" element={<CoursMatiere />} />
               <Route path="/assistant" element={<Assistant />} />
               <Route path="/recherche" element={<Recherche />} />
               <Route path="/chapitre/:id" element={<PageChapitre />} />

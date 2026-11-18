@@ -15,6 +15,8 @@ export interface FichierDrive {
   lien?: string;
   /** Fichier envoyé depuis l'application (et non lu dans le drive). */
   depot?: boolean;
+  /** Complément envoyé pour un chapitre précis. */
+  chapitreId?: string;
 }
 
 export interface Drive {

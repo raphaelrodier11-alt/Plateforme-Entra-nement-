@@ -167,6 +167,8 @@ export async function envoyerFichier(
   chemin: string,
   role: RoleDepot,
   progression: (part: number) => void,
+  /** Complément d'un chapitre : le fichier lui est rattaché directement. */
+  chapitreId?: string,
 ): Promise<Depot> {
   const morceaux = Math.ceil(contenu.size / TAILLE_MORCEAU);
   const { id, v } = (await (
@@ -196,7 +198,7 @@ export async function envoyerFichier(
   const reponse = await avecEssais(() =>
     api(`/depot/${id}/${v}/terminer`, {
       method: 'POST',
-      body: JSON.stringify({ nom, chemin, role, taille: contenu.size, morceaux }),
+      body: JSON.stringify({ nom, chemin, role, taille: contenu.size, morceaux, ...(chapitreId ? { chapitreId } : {}) }),
     }),
   );
   progression(1);

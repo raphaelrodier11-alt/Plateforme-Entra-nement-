@@ -473,6 +473,8 @@ function SectionDonnees() {
 }
 
 function SectionApparence() {
+  const d = useDonnees();
+  const [prenom, setPrenom] = useState(d.reglages.prenom ?? '');
   const [theme, setTheme] = useState<Theme>(lireTheme);
   const [animees, setAnimees] = useState(animationsActives);
   const choix: { valeur: Theme; libelle: string }[] = [
@@ -482,6 +484,17 @@ function SectionApparence() {
   ];
   return (
     <Carte titre="Apparence">
+      <label className="mb-4 block">
+        <span className="mb-1.5 block text-xs text-muet">Ton prénom (message d'accueil)</span>
+        <input
+          value={prenom}
+          maxLength={30}
+          onChange={(e) => setPrenom(e.target.value)}
+          onBlur={() => void enregistrer('reglages', { ...d.reglages, prenom: prenom.trim() || undefined })}
+          placeholder="Raphaël"
+          className={STYLE_CHAMP}
+        />
+      </label>
       <p className="mb-3 text-sm text-texte-2">
         Le thème se règle sur chaque appareil. « Automatique » suit le réglage de ton iPhone ou de ta tablette.
       </p>

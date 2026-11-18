@@ -35,6 +35,7 @@ export function driveDepot(
             modifieLe: d.modifieLe,
             taille: d.taille,
             depot: true,
+            ...(d.chapitreId ? { chapitreId: d.chapitreId } : {}),
           }),
         );
     },

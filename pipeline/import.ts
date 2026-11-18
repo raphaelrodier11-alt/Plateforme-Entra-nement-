@@ -111,11 +111,12 @@ export async function scanner(c: Contexte, sources: SourcesScan): Promise<BilanS
           modifieLe: f.modifieLe,
           empreinte: f.empreinte,
           lien: f.lien,
+          ...(f.chapitreId ? { chapitreImpose: f.chapitreId } : {}),
         });
         continue;
       }
 
-      const suivant: Fichier = { ...connu, nom: f.nom, chemin: f.chemin, mimeType: f.mimeType, lien: f.lien };
+      const suivant: Fichier = { ...connu, nom: f.nom, chemin: f.chemin, mimeType: f.mimeType, lien: f.lien, ...(f.chapitreId ? { chapitreImpose: f.chapitreId } : {}) };
       const change =
         connu.modifieLe !== f.modifieLe ||
         (!!connu.empreinte && !!f.empreinte && connu.empreinte !== f.empreinte);
@@ -519,6 +520,22 @@ export async function structurer(c: Contexte): Promise<void> {
     .filter((f) => aTraiter(f) && !f.matiereId && !!texteDe(c, f.id))
     // Les anciennes versions passent en dernier : les chapitres actuels existent alors déjà.
     .sort((a, b) => Number(a.role === 'ancien') - Number(b.role === 'ancien'));
+
+  // Compléments envoyés pour un chapitre précis : rattachés directement, sans classement par l'IA.
+  for (const f of [...aClasser]) {
+    if (!f.chapitreImpose) continue;
+    const chapitre = c.memoire.lire<Chapitre>('chapitres', f.chapitreImpose);
+    if (!chapitre) continue;
+    await c.memoire.ecrire<Fichier>('fichiers', { ...f, role: 'cours', matiereId: chapitre.matiereId, chapitreId: chapitre.id });
+    await c.memoire.ecrire<Chapitre>('chapitres', {
+      ...chapitre,
+      fichierIds: [...new Set([...chapitre.fichierIds, f.id])],
+      // Le chapitre est régénéré avec le complément : fiche, QCM, flashcards, puis vérification.
+      aGenerer: true,
+      aVerifier: true,
+    });
+    aClasser.splice(aClasser.indexOf(f), 1);
+  }
 
   // Matière imposée par le dossier du Drive (« SEMESTRE n / MATIÈRE / … ») : créée
   // d'avance, et l'IA ne peut plus la changer.

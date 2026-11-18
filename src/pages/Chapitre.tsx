@@ -26,6 +26,7 @@ import type { Actualisation, BlocFiche, Changement } from '../../shared/types';
 import { Suggestions } from '../composants/Suggestions';
 import { NotesChapitre } from '../fiches/Annotations';
 import { CarteMentale } from '../fiches/CarteMentale';
+import { Complements } from '../fiches/Complements';
 import {
   Bouton,
   EtatVide,
@@ -186,7 +187,7 @@ export function PageChapitre() {
   return (
     <div className="mx-auto max-w-4xl">
       <Link
-        to={`/cours#${chapitre.matiereId}`}
+        to={`/cours/${chapitre.matiereId}`}
         className="mb-3 inline-flex items-center gap-1 text-sm text-texte-2 hover:text-texte"
       >
         <ArrowLeft size={16} aria-hidden />
@@ -292,11 +293,15 @@ export function PageChapitre() {
             </div>
             <RenduFiche fiche={fiche} />
             <NotesChapitre chapitreId={chapitre.id} />
+            <Complements chapitre={chapitre} />
           </>
         ) : (
-          <EtatVide icone={BookOpen} titre="Fiche en cours de préparation">
-            La fiche de ce chapitre sera générée au prochain passage de l'import.
-          </EtatVide>
+          <>
+            <EtatVide icone={BookOpen} titre="Fiche en cours de préparation">
+              La fiche de ce chapitre sera générée au prochain passage de l'import.
+            </EtatVide>
+            <Complements chapitre={chapitre} />
+          </>
         ))}
 
       {onglet === 'carte' &&
