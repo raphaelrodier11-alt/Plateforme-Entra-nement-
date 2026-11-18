@@ -15,6 +15,7 @@ import {
   type StatsChapitre,
   type StatsMatiere,
 } from '../../shared/progression';
+import { besoinRevision, difficulteRessentie, maitriseEffective } from '../../shared/evaluations';
 import { recommander, type Recommandation } from '../../shared/recommandations';
 import { etatsRepetition, type EtatRepetition } from '../../shared/repetition';
 import {
@@ -28,6 +29,7 @@ import {
   type Disponibilite,
   type Estimation,
   type Entrainement,
+  type Evaluation,
   type EtatPipeline,
   type Evenement,
   type Examen,
@@ -53,6 +55,7 @@ export interface Brut {
   /** Questions des entraînements sur mesure (fusionnées avec `questions` dans les calculs). */
   questionsPerso: Question[];
   entrainements: Entrainement[];
+  evaluations: Evaluation[];
   cas: CasClinique[];
   fiches: Fiche[];
   flashcards: Flashcard[];
@@ -97,6 +100,12 @@ export interface Donnees extends Omit<Brut, 'reglages' | 'etat'> {
   etats: Map<string, EtatQuestion>;
   repetitions: Map<string, EtatRepetition>;
   stats: Map<string, StatsChapitre>;
+  /** Ressenti et avancement saisis, par chapitre. */
+  evaluationParChapitre: Map<string, Evaluation>;
+  /** Maîtrise effective (0 à 1) : ce que tu as déclaré, fusionné avec tes résultats réels. */
+  maitriseParChapitre: Map<string, number>;
+  /** Besoin de révision (0 à 1) : faiblesse pondérée par la difficulté ressentie. */
+  besoinParChapitre: Map<string, number>;
   statsMatiere: Map<string, StatsMatiere>;
 
   /** Questions actuellement dans la liste d'erreurs. */
@@ -145,6 +154,16 @@ export function calculer(brutInitial: Brut, maintenant: number): Donnees {
   const etats = etatsQuestions(tentatives);
   const repetitions = etatsRepetition(tentatives);
   const stats = statsChapitres(chapitres, brut.questions, etats, repetitions, maintenant);
+  const evaluationParChapitre = indexer(brut.evaluations ?? []);
+  const maitriseParChapitre = new Map<string, number>();
+  const besoinParChapitre = new Map<string, number>();
+  for (const c of chapitres) {
+    const st = stats.get(c.id);
+    const ev = evaluationParChapitre.get(c.id);
+    const m = maitriseEffective(ev, st?.maitrise ?? 0, st?.nbTentees ?? 0);
+    maitriseParChapitre.set(c.id, m);
+    besoinParChapitre.set(c.id, besoinRevision(m, difficulteRessentie(ev)));
+  }
   const listeStats = [...stats.values()];
 
   const erreurs: Question[] = [];
@@ -231,6 +250,9 @@ export function calculer(brutInitial: Brut, maintenant: number): Donnees {
 
   return {
     ...brut,
+    evaluationParChapitre,
+    maitriseParChapitre,
+    besoinParChapitre,
     matieres,
     chapitres,
     tentatives,

@@ -8,6 +8,7 @@ import {
   ChartLine,
   CircleAlert,
   Cloud,
+  CheckCheck,
   CloudOff,
   Dumbbell,
   Ellipsis,
@@ -82,6 +83,7 @@ export function Navigation() {
     { vers: '/erreurs', libelle: 'Erreurs', icone: CircleAlert, compte: erreursDues.length },
     { vers: '/planning', libelle: 'Planning', icone: CalendarDays },
     { vers: '/examens', libelle: 'Examens', icone: GraduationCap },
+    { vers: '/avancement', libelle: 'Mon avancement', icone: CheckCheck },
     { vers: '/suivi', libelle: 'Suivi', icone: ChartLine },
     { vers: '/fichiers', libelle: 'Fichiers', icone: Upload },
     {

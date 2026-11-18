@@ -27,6 +27,7 @@ import { estIncontournable, nbPartiels, suggererTypeErreur } from '../../shared/
 import type { Question, ReponseDonnee, Session, Tentative, TypeErreur } from '../../shared/types';
 import { ExportCopie } from '../composants/ExportCopie';
 import { ContexteQuestion } from '../composants/PublierContexte';
+import { RessentiChapitre } from '../composants/Ressenti';
 import { ExpliquerToutes } from '../composants/ExpliquerToutes';
 import { QuestionVue } from '../composants/QuestionVue';
 import { Bouton, EtatVide, Jauge, LienBouton, Pastille, Puce, cx, nombre } from '../composants/ui';
@@ -460,6 +461,32 @@ function Examen({ session, questions }: { session: Session; questions: Question[
 // Résultat : score et revue des réponses
 // ---------------------------------------------------------------------------
 
+/** À la fin d'une série : ton ressenti sur les chapitres travaillés, pour adapter l'emploi du temps. */
+function SectionRessenti({ questions }: { questions: Question[] }) {
+  const { chapitreParId, evaluationParChapitre, maintenant } = useDonnees();
+  const ids = [...new Set(questions.map((q) => q.chapitreId))].slice(0, 3);
+  const jour = new Date(maintenant).toISOString().slice(0, 10);
+  const aDemander = ids.filter((id) => evaluationParChapitre.get(id)?.majLe === undefined || new Date(evaluationParChapitre.get(id)!.majLe).toISOString().slice(0, 10) !== jour);
+  if (aDemander.length === 0) return null;
+  return (
+    <section className="carte mb-4 p-4">
+      <h2 className="mb-1 text-sm font-semibold">Ton ressenti ?</h2>
+      <p className="mb-3 text-xs text-texte-2">Estime toi-même la difficulté du cours et ta confiance : ton emploi du temps s'en sert.</p>
+      <div className="space-y-5">
+        {aDemander.map((id) => {
+          const ch = chapitreParId.get(id);
+          return ch ? (
+            <div key={id}>
+              <p className="mb-2 text-sm font-medium">{ch.titre}</p>
+              <RessentiChapitre chapitre={ch} titre={false} />
+            </div>
+          ) : null;
+        })}
+      </div>
+    </section>
+  );
+}
+
 function Resultat({
   session,
   questions,
@@ -514,6 +541,8 @@ function Resultat({
       <ExportCopie session={session} questions={questions} tentatives={tentatives} noteSur20={score.noteSur20} points={score.points} total={score.total} />
 
       {ratees.length > 0 && <ExpliquerToutes questions={ratees} />}
+
+      <SectionRessenti questions={questions} />
 
       {ouverte && questions.find((q) => q.id === ouverte) && (
         <ContexteQuestion question={questions.find((q) => q.id === ouverte)!} reponse={parQuestion.get(ouverte)?.reponse} />

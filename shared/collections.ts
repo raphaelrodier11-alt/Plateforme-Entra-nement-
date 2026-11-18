@@ -39,6 +39,7 @@ export const COLLECTIONS = {
   demandes: 'utilisateur',
   annotations: 'utilisateur',
   explications: 'utilisateur',
+  evaluations: 'utilisateur',
   // Entraînements sur mesure et leurs questions (écrits par l'app comme par le pipeline).
   entrainements: 'utilisateur',
   questionsPerso: 'utilisateur',

@@ -780,3 +780,18 @@ export interface Entrainement {
   creeLe: number;
   majLe: number;
 }
+
+/** Ressenti et avancement saisis par l'étudiant pour un chapitre (un document par chapitre). */
+export interface Evaluation {
+  /** Identique à l'identifiant du chapitre. */
+  id: string;
+  /** Difficulté du cours telle que tu la ressens, de 1 (très facile) à 5 (très difficile). */
+  difficulte?: number;
+  /** Ta confiance pour le partiel, de 1 (aucune) à 5 (totale). */
+  confiance?: number;
+  /** Chapitre déjà travaillé avant d'utiliser l'application. */
+  dejaVu?: boolean;
+  /** Dernier jour d'étude, AAAA-MM-JJ (saisi, ou posé à la main pour du travail déjà fait). */
+  etudieLe?: string;
+  majLe: number;
+}

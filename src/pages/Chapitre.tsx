@@ -28,6 +28,7 @@ import { NotesChapitre } from '../fiches/Annotations';
 import { CarteMentale } from '../fiches/CarteMentale';
 import { ExportPdfChapitre } from '../composants/ExportPdf';
 import { ContexteChapitre } from '../composants/PublierContexte';
+import { RessentiChapitre } from '../composants/Ressenti';
 import { Complements } from '../fiches/Complements';
 import {
   Bouton,
@@ -296,6 +297,7 @@ export function PageChapitre() {
               </Bouton>
             </div>
             <RenduFiche fiche={fiche} />
+            <RessentiChapitre chapitre={chapitre} />
             <NotesChapitre chapitreId={chapitre.id} />
             <Complements chapitre={chapitre} />
           </>

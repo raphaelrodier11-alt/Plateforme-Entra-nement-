@@ -14,6 +14,7 @@ import {
   EtatVide,
   Jauge,
   Onglets,
+  LienBouton,
   Pastille,
   PastilleStatut,
   Puce,
@@ -102,7 +103,11 @@ export function Cours() {
 
   return (
     <div>
-      <TitrePage titre="Cours" sousTitre={`${libelle(choix)} · ${visibles.length} matière${visibles.length > 1 ? 's' : ''} · ${nbChapitres} chapitres`} />
+      <TitrePage
+        titre="Cours"
+        sousTitre={`${libelle(choix)} · ${visibles.length} matière${visibles.length > 1 ? 's' : ''} · ${nbChapitres} chapitres`}
+        action={<LienBouton to="/avancement" variante="discret" className="min-h-9 px-3">Mon avancement</LienBouton>}
+      />
 
       {selections.length > 1 && (
         <div className="mb-4">
