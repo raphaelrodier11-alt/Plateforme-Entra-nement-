@@ -54,7 +54,7 @@ export function questionsCorrespondantes(d: Donnees, f: FiltreQcm): Question[] {
     if (f.source && f.source !== 'toutes' && q.source !== f.source) return false;
     if (f.incontournables && !estIncontournable(q)) return false;
     // Les questions réservées aux examens blancs restent inédites.
-    if (q.reserveExamen && !d.etats.has(q.id)) return false;
+    if ((q.reserveExamen || q.perso) && !d.etats.has(q.id)) return false;
     return true;
   });
 }

@@ -20,6 +20,7 @@ import { Assistant } from './pages/Assistant';
 import { PageChapitre } from './pages/Chapitre';
 import { Corrections } from './pages/Corrections';
 import { Cours, CoursMatiere } from './pages/Cours';
+import { Entrainements } from './pages/Entrainements';
 import { Erreurs } from './pages/Erreurs';
 import { Examens } from './pages/Examens';
 import { Fichiers } from './pages/Fichiers';
@@ -140,6 +141,7 @@ export function App() {
               <Route path="/chapitre/:id" element={<PageChapitre />} />
               <Route path="/chapitre/:id/flashcards" element={<Flashcards />} />
               <Route path="/qcm" element={<Qcm />} />
+              <Route path="/entrainements" element={<Entrainements />} />
               <Route path="/session/:id" element={<PageSession />} />
               <Route path="/examens" element={<Examens />} />
               <Route path="/erreurs" element={<Erreurs />} />

@@ -6,8 +6,9 @@
  *  - PIPELINE_KEY       clé du pipeline, connue aussi du serveur
  *  - GEMINI_API_KEY     clé de l'API Gemini (nécessaire à la génération)
  *  - PIPELINE_MODE      « auto » (défaut) ou « scan » pour forcer la vérification du drive
- *  - PIPELINE_BUDGET_MIN durée maximale d'un passage, en minutes (défaut : 50)
+ *  - PIPELINE_BUDGET_MIN durée maximale d'une tranche de passage, en minutes (défaut : 50)
  */
+import { writeFileSync } from 'node:fs';
 import { driveGoogle } from './drive';
 import { lireFichier } from './extraction';
 import { iaGemini } from './ia';
@@ -35,6 +36,12 @@ async function principal(): Promise<void> {
     budgetMinutes: Number(process.env.PIPELINE_BUDGET_MIN) || 50,
   });
   journal(`Fin du passage : ${issue}`);
+  // Lu par le workflow : il enchaîne une nouvelle tranche tant qu'il reste du travail (« a_reprendre »).
+  try {
+    writeFileSync('.issue', issue);
+  } catch {
+    // Sans fichier, le workflow s'arrête simplement après ce passage.
+  }
   if (issue === 'erreur') process.exitCode = 1;
 }
 

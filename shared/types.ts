@@ -157,6 +157,10 @@ export interface Question {
   reserveExamen?: boolean;
   /** Signalée par le générateur comme contenant un piège classique. */
   piege?: boolean;
+  /** Question créée pour un entraînement sur mesure : hors avancement, examens blancs et sélections automatiques tant qu'elle n'a pas été travaillée. */
+  perso?: boolean;
+  /** Entraînement sur mesure d'où vient la question. */
+  entrainementId?: string;
   /** Annales : partiels où la question est tombée. */
   occurrences?: OccurrenceAnnale[];
   corrige?: OrigineCorrige;
@@ -738,5 +742,39 @@ export interface ExplicationDetaillee {
   /** Identique à l'identifiant de la question. */
   id: string;
   texte: string;
+  majLe: number;
+}
+
+// ---------------------------------------------------------------------------
+// Entraînements sur mesure
+// ---------------------------------------------------------------------------
+
+export interface ReglesEntrainement {
+  matiereId?: string;
+  /** Chapitres interrogés ; vide : tous ceux de la matière (ou de toutes les matières). */
+  chapitreIds: string[];
+  /** Types de questions voulus ; vide : un mélange comme aux partiels. */
+  types: TypeQuestion[];
+  /** Part de questions appartenant à des cas cliniques. */
+  casCliniques: boolean;
+  difficulte: 'facile' | 'moyenne' | 'difficile' | 'mixte';
+  /** Insister sur les pièges classiques. */
+  pieges: boolean;
+  nombre: number;
+  /** Durée limite en minutes ; absente : sans chrono. */
+  chronoMin?: number;
+  /** Consignes libres de l'utilisateur. */
+  consignes?: string;
+}
+
+export interface Entrainement {
+  id: string;
+  titre: string;
+  regles: ReglesEntrainement;
+  statut: 'en_attente' | 'en_cours' | 'pret' | 'erreur';
+  /** Questions déjà prêtes (elles sont utilisables avant la fin de la génération). */
+  questionIds: string[];
+  message?: string;
+  creeLe: number;
   majLe: number;
 }

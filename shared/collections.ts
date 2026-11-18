@@ -39,6 +39,9 @@ export const COLLECTIONS = {
   demandes: 'utilisateur',
   annotations: 'utilisateur',
   explications: 'utilisateur',
+  // Entraînements sur mesure et leurs questions (écrits par l'app comme par le pipeline).
+  entrainements: 'utilisateur',
+  questionsPerso: 'utilisateur',
   // Textes extraits des fichiers : volumineux, utiles au seul pipeline.
   textes: 'interne',
 } as const satisfies Record<string, Portee>;

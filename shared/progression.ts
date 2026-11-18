@@ -78,7 +78,7 @@ export function statutChapitre(s: {
 
 export function statsChapitres(
   chapitres: Pick<Chapitre, 'id' | 'matiereId'>[],
-  questions: Pick<Question, 'id' | 'chapitreId' | 'occurrences' | 'reserveExamen'>[],
+  questions: Pick<Question, 'id' | 'chapitreId' | 'occurrences' | 'reserveExamen' | 'perso'>[],
   etats: Map<string, EtatQuestion>,
   repetitions: Map<string, EtatRepetition>,
   maintenant: number,
@@ -113,7 +113,7 @@ export function statsChapitres(
 
     const etat = etats.get(q.id);
     // Une question de réserve n'entre dans l'avancement qu'une fois vue.
-    if (q.reserveExamen && !etat) continue;
+    if ((q.reserveExamen || q.perso) && !etat) continue;
     s.nbQuestions += 1;
     if (!etat) continue;
 

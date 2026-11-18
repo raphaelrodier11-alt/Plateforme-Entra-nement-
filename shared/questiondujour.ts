@@ -8,7 +8,7 @@ function hash(texte: string): number {
 }
 
 export function questionDuJour(questions: Question[], erreursDues: Question[], jour: string): Question | undefined {
-  const pool = (erreursDues.length > 0 ? erreursDues : questions).filter((q) => !q.reserveExamen);
+  const pool = (erreursDues.length > 0 ? erreursDues : questions).filter((q) => !q.reserveExamen && !q.perso);
   if (pool.length === 0) return undefined;
   // Tri stable par identifiant : le choix ne dépend pas de l'ordre de lecture de la base.
   const tries = [...pool].sort((a, b) => a.id.localeCompare(b.id));

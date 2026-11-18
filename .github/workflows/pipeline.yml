@@ -67,8 +67,22 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PIPELINE_MODE: ${{ inputs.mode || 'auto' }}
-          PIPELINE_BUDGET_MIN: '320'
-        run: npm run pipeline
+          PIPELINE_BUDGET_MIN: '20'
+        # Le travail est découpé en tranches de 20 minutes : à chaque tranche, les demandes de
+        # l'app (documents, entraînements sur mesure) passent en premier, puis l'import continue.
+        # On enchaîne tant qu'il reste du travail, dans la limite de 5 h 20.
+        run: |
+          fin=$(( $(date +%s) + 19200 ))
+          while true; do
+            rm -f .issue
+            npm run pipeline
+            issue=$(cat .issue 2>/dev/null || echo "")
+            echo "Issue de la tranche : ${issue:-inconnue}"
+            [ "$issue" = "a_reprendre" ] || break
+            [ "$(date +%s)" -lt "$fin" ] || break
+            # Le mode « scan » forcé n'a de sens qu'à la première tranche.
+            export PIPELINE_MODE=auto
+          done
 
       # GitHub suspend les tâches planifiées d'un dépôt resté 60 jours sans
       # activité : réactiver le workflow à chaque passage évite cette suspension.

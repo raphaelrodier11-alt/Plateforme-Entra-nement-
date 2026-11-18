@@ -27,6 +27,7 @@ import {
   type Depot,
   type Disponibilite,
   type Estimation,
+  type Entrainement,
   type EtatPipeline,
   type Evenement,
   type Examen,
@@ -49,6 +50,9 @@ export interface Brut {
   matieres: Matiere[];
   chapitres: Chapitre[];
   questions: Question[];
+  /** Questions des entraînements sur mesure (fusionnées avec `questions` dans les calculs). */
+  questionsPerso: Question[];
+  entrainements: Entrainement[];
   cas: CasClinique[];
   fiches: Fiche[];
   flashcards: Flashcard[];
@@ -127,7 +131,9 @@ function grouper<T>(elements: T[], cle: (e: T) => string): Map<string, T[]> {
   return groupes;
 }
 
-export function calculer(brut: Brut, maintenant: number): Donnees {
+export function calculer(brutInitial: Brut, maintenant: number): Donnees {
+  // Les questions des entraînements sur mesure rejoignent les autres, marquées « perso » (hors avancement).
+  const brut: Brut = { ...brutInitial, questions: [...brutInitial.questions, ...(brutInitial.questionsPerso ?? [])] };
   const matieres = [...brut.matieres].sort((a, b) => a.ordre - b.ordre || a.nom.localeCompare(b.nom));
   const chapitres = [...brut.chapitres].sort((a, b) => a.ordre - b.ordre || a.titre.localeCompare(b.titre));
   const reglages: Reglages = { ...REGLAGES_DEFAUT, ...brut.reglages.find((r) => r.id === 'principal') };

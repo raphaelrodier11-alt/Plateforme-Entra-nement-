@@ -123,7 +123,7 @@ function parChapitre(unites: Unite[]): Map<string, Unite[]> {
 
 export function composerExamenBlanc(o: OptionsExamen): ExamenCompose {
   const generees = o.questions.filter(
-    (q) => q.matiereId === o.matiereId && q.source === 'genere',
+    (q) => q.matiereId === o.matiereId && q.source === 'genere' && !q.perso,
   );
   // Ordre de préférence : jamais vues (réserve d'abord), puis les moins vues.
   const rang = (u: Unite): number => {
@@ -146,7 +146,7 @@ export function composerExamenBlanc(o: OptionsExamen): ExamenCompose {
 }
 
 export function composerExamenGeneral(o: OptionsExamen): ExamenCompose {
-  const pool = o.questions.filter((q) => q.matiereId === o.matiereId && !q.reserveExamen);
+  const pool = o.questions.filter((q) => q.matiereId === o.matiereId && !q.reserveExamen && !q.perso);
   // Jamais vues d'abord, puis les erreurs en cours, puis le reste.
   const rang = (u: Unite): number => {
     const etats = u.questions.map((q) => o.etats.get(q.id));

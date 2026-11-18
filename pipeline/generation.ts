@@ -91,7 +91,7 @@ function pourIa(ref: string, q: Question, avecReponses: boolean): QuestionPourIa
 }
 
 /** Texte de tous les cours d'un chapitre, avec le nom de chaque fichier. */
-function coursDuChapitre(c: Contexte, chapitre: Chapitre): { texte: string; fichiers: Fichier[]; complet: boolean } {
+export function coursDuChapitre(c: Contexte, chapitre: Chapitre): { texte: string; fichiers: Fichier[]; complet: boolean } {
   const fichiers = chapitre.fichierIds
     .map((id) => c.memoire.lire<Fichier>('fichiers', id))
     .filter((f): f is Fichier => !!f && f.role === 'cours' && f.etat !== 'supprime');

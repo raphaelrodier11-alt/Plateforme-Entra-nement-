@@ -31,6 +31,8 @@ const INDEX: Partial<Record<Collection, string>> = {
   actualisations: 'id, chapitreId',
   conversations: 'id, matiereId, majLe',
   documents: 'id, matiereId, creeLe',
+  questionsPerso: 'id, chapitreId, entrainementId',
+  entrainements: 'id, majLe',
 };
 
 export class BaseLocale extends Dexie {
@@ -49,14 +51,16 @@ export class BaseLocale extends Dexie {
     // Chaque ajout de table demande une nouvelle version : les appareils déjà
     // installés migrent sans perdre leurs données.
     const assistant: Collection[] = ['conversations', 'documents', 'demandes'];
+    const v6: Collection[] = ['entrainements', 'questionsPerso'];
     const v4: Collection[] = ['annotations', 'explications'];
     const v5: Collection[] = ['explications'];
-    this.version(1).stores(schema(['depots', 'actualisations', ...assistant, ...v4]));
-    this.version(2).stores(schema(['actualisations', ...assistant, ...v4]));
-    this.version(3).stores(schema([...assistant, ...v4]));
-    this.version(4).stores(schema(v4));
-    this.version(5).stores(schema(v5));
-    this.version(6).stores(schema([]));
+    this.version(1).stores(schema(['depots', 'actualisations', ...assistant, ...v4, ...v6]));
+    this.version(2).stores(schema(['actualisations', ...assistant, ...v4, ...v6]));
+    this.version(3).stores(schema([...assistant, ...v4, ...v6]));
+    this.version(4).stores(schema([...v4, ...v6]));
+    this.version(5).stores(schema([...v5, ...v6]));
+    this.version(6).stores(schema(v6));
+    this.version(7).stores(schema([]));
   }
 
   collection<T extends { id: string }>(nom: Collection): Table<T, string> {

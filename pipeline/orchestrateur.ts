@@ -29,6 +29,7 @@ import { idDossier, type Drive } from './drive';
 import { comparer, finaliserAnciens } from './actualisations';
 import { DOSSIER_DEPOT, driveComposite, driveDepot, estFichierDepot, idFichierDepot } from './depot';
 import { demandesATraiter, traiterDemandes } from './documents';
+import { entrainementsATraiter, traiterEntrainements } from './entrainements';
 import { ajouterQuestions, genererChapitres, traiterAnnales, verifierChapitres } from './generation';
 import type { Ia } from './ia';
 import { aTraiter, estimer, lireFichiers, lireScans, scanner, structurer } from './import';
@@ -80,7 +81,7 @@ const NOMS_PAR_DEFAUT: Record<Niveau, string> = {
 export async function executer(d: Dependances): Promise<Issue> {
   const maintenant = d.maintenant ?? Date.now();
   const memoire = new Memoire(d.stockage);
-  await memoire.charger('reglages', 'etat', 'taches', 'fichiers', 'depots', 'chapitres', 'estimations', 'notifications', 'demandes');
+  await memoire.charger('reglages', 'etat', 'taches', 'fichiers', 'depots', 'chapitres', 'estimations', 'notifications', 'demandes', 'entrainements');
 
   const reglages = memoire.lire<Reglages>('reglages', 'principal');
   const lireEtat = (): EtatPipeline =>
@@ -113,22 +114,39 @@ export async function executer(d: Dependances): Promise<Issue> {
     memoire.liste<Fichier>('fichiers').filter((f) => estFichierDepot(f.id) && f.etat !== 'supprime');
   const avecDepot = depotsActuels().length > 0 || fichiersDepot().length > 0;
 
-  // Documents demandés dans l'app : traités en premier, indépendamment de l'import.
-  if (d.creerIa && demandesATraiter(memoire, maintenant).length > 0) {
+  // Demandes de l'app (documents, entraînements sur mesure) : traitées en premier, indépendamment de l'import.
+  const aDesDemandes = demandesATraiter(memoire, maintenant).length > 0;
+  const aDesEntrainements = entrainementsATraiter({ memoire, maintenant }).length > 0;
+  if (d.creerIa && (aDesDemandes || aDesEntrainements)) {
     await memoire.charger('matieres', 'documents');
     try {
-      const iaDocuments = await d.creerIa({
+      const iaDemandes = await d.creerIa({
         modeleMasse: reglages?.modeleMasse,
         modeleExpert: reglages?.modeleExpert,
         tarifs: reglages?.tarifs,
         plafondUsd: gratuit ? Number.MAX_SAFE_INTEGER : (reglages?.plafondMensuelUsd ?? PLAFOND_MINIMAL_USD),
         gratuit,
       });
-      const n = await traiterDemandes(memoire, iaDocuments, maintenant);
-      journal(`Documents demandés : ${n} rédigé${n > 1 ? 's' : ''}`);
+      if (aDesDemandes) {
+        const n = await traiterDemandes(memoire, iaDemandes, maintenant);
+        journal(`Documents demandés : ${n} rédigé${n > 1 ? 's' : ''}`);
+      }
+      if (aDesEntrainements) {
+        await memoire.charger('questionsPerso', 'questions', 'cas', 'textes');
+        const contexteDemandes: Contexte = {
+          memoire,
+          drive: { lister: async () => [], telecharger: async () => { throw new Error('Sans drive'); } },
+          ia: iaDemandes,
+          maintenant,
+          lire: d.lire,
+          echeance: Date.now() + Math.min(d.budgetMinutes, 30) * 60_000,
+        };
+        const n = await traiterEntrainements(contexteDemandes);
+        journal(`Entraînements sur mesure : ${n} question${n > 1 ? 's' : ''} créée${n > 1 ? 's' : ''}`);
+      }
     } catch (erreur) {
-      if (!estArret(erreur)) journal(`Documents demandés : ${erreurPublique(erreur)}`);
-      else journal('Documents demandés : limite atteinte, reprise au prochain passage');
+      if (!estArret(erreur)) journal(`Demandes de l'app : ${erreurPublique(erreur)}`);
+      else journal("Demandes de l'app : limite atteinte, reprise au prochain passage");
     }
   }
 

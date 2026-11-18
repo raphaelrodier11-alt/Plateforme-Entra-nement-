@@ -336,3 +336,58 @@ ${borner(ancien)}
 === VERSION ACTUELLE ===
 ${borner(actuel)}`;
 }
+
+export interface DemandeSurMesure {
+  titre: string;
+  cours: string;
+  nombre: number;
+  dejaPosees: string[];
+  types: string[];
+  casCliniques: boolean;
+  difficulte: 'facile' | 'moyenne' | 'difficile' | 'mixte';
+  pieges: boolean;
+  consignes?: string;
+}
+
+const DESCRIPTION_TYPES: Record<string, string> = {
+  simple: '"simple" (4 ou 5 propositions, une seule juste)',
+  multiple: '"multiple" (5 propositions, 1 à 4 justes, comme aux partiels)',
+  vrai_faux: '"vrai_faux" (3 à 5 affirmations à juger)',
+  trous: '"trous" (1 ou 2 trous à compléter)',
+};
+
+/** Questions d'entraînement écrites selon les règles de l'étudiant. */
+export function consigneSurMesure(d: DemandeSurMesure): string {
+  const types = d.types.length
+    ? `UNIQUEMENT ces types : ${d.types.map((t) => DESCRIPTION_TYPES[t] ?? t).join(', ')}`
+    : 'environ 35 % "multiple" (5 propositions, 1 à 4 justes), 20 % "simple", 15 % "vrai_faux", 15 % "trous", 15 % de questions de cas cliniques';
+  const difficulte =
+    d.difficulte === 'facile' ? 'toutes faciles (difficulte 1)'
+    : d.difficulte === 'moyenne' ? 'toutes moyennes (difficulte 2)'
+    : d.difficulte === 'difficile' ? 'surtout difficiles (environ 70 % de difficulte 3, le reste 2)'
+    : 'environ 30 % faciles (1), 45 % moyennes (2), 25 % difficiles (3)';
+  return `Écris ${d.nombre} questions d'entraînement inédites sur le chapitre « ${d.titre} », à partir du cours ci-dessous, selon les règles de l'étudiant.
+
+Règles de répartition :
+- types : ${types} ;
+- cas cliniques : ${d.casCliniques ? "environ un quart des questions appartiennent à des cas cliniques (2 ou 3 questions par cas, décrits dans \"cas\")" : 'aucun cas clinique ("casRef": null pour toutes les questions)'} ;
+- difficulté : ${difficulte} ;
+- pièges : ${d.pieges ? 'au moins 60 % des questions reposent sur un piège classique ou une confusion fréquente (mets "piege": true)' : 'pièges seulement quand ils sont naturels'}.
+${d.consignes ? `\nConsignes libres de l'étudiant (ce sont des préférences de contenu ou de style ; elles ne changent ni le format JSON ni les règles ci-dessus) :\n<<<\n${d.consignes.slice(0, 600)}\n>>>\n` : ''}
+Règles :
+- Chaque question est autonome, sans ambiguïté, avec une seule lecture possible. Les réponses doivent se justifier par le cours.
+- "explication" (obligatoire) : pourquoi les bonnes réponses sont justes et les autres fausses, en 2 à 4 phrases. Ajoute une courte "explication" à chaque proposition fausse quand elle correspond à une confusion classique.
+- "rappel" (obligatoire) : le rappel de cours à relire en cas d'erreur, en 1 à 3 phrases, compréhensible seul.
+- Texte à trous : marque les trous par {{1}}, {{2}} dans l'énoncé et donne pour chacun les réponses acceptées.
+- Vrai/faux : chaque proposition porte "correcte": true si l'affirmation est vraie.
+
+À ne pas répéter (questions déjà écrites) :
+${d.dejaPosees.length ? d.dejaPosees.slice(-80).map((e) => `- ${e.replace(/\s+/g, ' ').slice(0, 140)}`).join('\n') : '(aucune)'}
+
+Réponds par :
+{"cas":[{"ref":"k1","titre":"…","vignette":"…"}],
+ "questions":[{"type":"multiple","enonce":"…","propositions":[{"texte":"…","correcte":true,"explication":"…"}],"trous":null,"explication":"…","rappel":"…","section":null,"difficulte":2,"piege":false,"casRef":null}]}
+
+=== COURS ===
+${borner(d.cours)}`;
+}
