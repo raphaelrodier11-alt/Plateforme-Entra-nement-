@@ -7,7 +7,7 @@
  * jamais l'import, et inversement).
  */
 import { Hono } from 'hono';
-import { LIMITES_ASSISTANT, systemeDiscussion, systemeDocument, systemeInterro, systemeScene3D } from '../shared/assistant';
+import { LIMITES_ASSISTANT, systemeDiscussion, systemeDocument, systemeExplicationErreur, systemeInterro, systemeScene3D } from '../shared/assistant';
 import { choisirModele } from '../shared/modeles';
 import type { TypeDocument } from '../shared/types';
 import type { Env, Role } from './env';
@@ -61,7 +61,7 @@ assistant.post('/', async (c) => {
   const messages = messagesValides(corps.messages);
   const contexte = typeof corps.contexte === 'string' ? corps.contexte : '';
   const matiere = typeof corps.matiere === 'string' ? corps.matiere.slice(0, 120) : undefined;
-  const mode = corps.mode === 'document' ? 'document' : corps.mode === 'scene3d' ? 'scene3d' : corps.mode === 'interro' ? 'interro' : 'discussion';
+  const mode = corps.mode === 'document' ? 'document' : corps.mode === 'scene3d' ? 'scene3d' : corps.mode === 'interro' ? 'interro' : corps.mode === 'explication' ? 'explication' : 'discussion';
   const nbQuestions = Math.min(20, Math.max(3, Number(corps.nbQuestions) || 5));
   const type = TYPES.includes(corps.type as TypeDocument) ? (corps.type as TypeDocument) : 'libre';
   if (!messages || contexte.length > LIMITES_ASSISTANT.contexte + 2_000) return c.json({ erreur: 'demande_invalide' }, 400);
@@ -92,14 +92,14 @@ assistant.post('/', async (c) => {
           parts: [
             {
               text:
-                mode === 'scene3d' ? systemeScene3D(matiere) : mode === 'interro' ? systemeInterro(matiere, nbQuestions) : mode === 'document' ? systemeDocument(type, matiere) : systemeDiscussion(matiere),
+                mode === 'scene3d' ? systemeScene3D(matiere) : mode === 'interro' ? systemeInterro(matiere, nbQuestions) : mode === 'explication' ? systemeExplicationErreur(matiere) : mode === 'document' ? systemeDocument(type, matiere) : systemeDiscussion(matiere),
             },
           ],
         },
         contents: contenus,
         generationConfig: {
           temperature: mode === 'discussion' ? 0.5 : 0.3,
-          maxOutputTokens: mode === 'document' ? 12_000 : mode === 'scene3d' ? 8_000 : 3_000,
+          maxOutputTokens: mode === 'document' ? 12_000 : mode === 'scene3d' ? 8_000 : mode === 'explication' ? 5_000 : 3_000,
           ...(mode === 'scene3d' ? { responseMimeType: 'application/json' } : {}),
         },
       }),

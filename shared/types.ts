@@ -732,3 +732,11 @@ export interface Annotations {
   surlignes: string[];
   majLe: number;
 }
+
+/** Explication détaillée d'une question, gardée avec elle (une par question). */
+export interface ExplicationDetaillee {
+  /** Identique à l'identifiant de la question. */
+  id: string;
+  texte: string;
+  majLe: number;
+}

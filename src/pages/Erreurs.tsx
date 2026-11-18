@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router-dom';
 import { cleJour, joursEntre, jourLisible } from '../../shared/dates';
 import { estIncontournable } from '../../shared/marqueurs';
 import type { Question, TypeErreur } from '../../shared/types';
+import { ExplicationDetaillee } from '../composants/ExplicationDetaillee';
+import { ExpliquerToutes } from '../composants/ExpliquerToutes';
 import { QuestionVue } from '../composants/QuestionVue';
 import {
   Bouton,
@@ -179,6 +181,8 @@ export function Erreurs() {
             )}
           </div>
 
+          <ExpliquerToutes questions={liste} />
+
           {liste.length === 0 ? (
             <p className="carte p-6 text-center text-sm text-texte-2">
               Aucune question ne correspond à ces filtres.
@@ -241,6 +245,7 @@ export function Erreurs() {
                           solution
                         />
                         <Explication question={q} />
+                        <ExplicationDetaillee question={q} />
                         <Bouton icone={Play} onClick={() => void reviser([q], 'Question à revoir')}>
                           Refaire cette question
                         </Bouton>

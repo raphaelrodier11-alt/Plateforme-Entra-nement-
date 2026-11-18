@@ -38,6 +38,7 @@ export const COLLECTIONS = {
   documents: 'utilisateur',
   demandes: 'utilisateur',
   annotations: 'utilisateur',
+  explications: 'utilisateur',
   // Textes extraits des fichiers : volumineux, utiles au seul pipeline.
   textes: 'interne',
 } as const satisfies Record<string, Portee>;

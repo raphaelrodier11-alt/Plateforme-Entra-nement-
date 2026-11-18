@@ -15,6 +15,7 @@ import {
   titreConversation,
 } from '../../shared/assistant';
 import type {
+  ExplicationDetaillee,
   Scene3D,
   Question,
   ReponseDonnee,
@@ -241,7 +242,7 @@ export function demandeExplication(question: Question, reponse: ReponseDonnee): 
     lignes.push('', `Mes réponses : ${question.trous.map((t) => `${t.id} = ${reponse.textes?.[t.id] ?? '—'}`).join(' ; ')}`, `Attendu : ${question.trous.map((t) => `${t.id} = ${t.reponses[0] ?? ''}`).join(' ; ')}`);
   }
   if (question.explication) lignes.push('', `Explication fournie : ${question.explication}`);
-  lignes.push('', "Dis-moi pourquoi je me suis trompé, rappelle la notion de cours concernée, et donne-moi un moyen de ne plus tomber dans ce piège.");
+  lignes.push('', 'Donne-moi une explication détaillée et justifiée : le raisonnement pour chaque proposition, pourquoi je me suis trompé, et comment ne plus tomber dans ce piège.');
   return lignes.join('\n');
 }
 
@@ -346,4 +347,48 @@ export async function tourInterro(d: Donnees, conversation: Conversation, repons
   };
   await enregistrer('conversations', final);
   return final;
+}
+
+/** Explication détaillée d'une question (cours et connaissances générales), enregistrée avec elle. */
+export async function expliquerQuestion(d: Donnees, question: Question, reponse: ReponseDonnee = {}): Promise<string> {
+  const matiere = d.matiereParId.get(question.matiereId);
+  const chapitre = d.chapitreParId.get(question.chapitreId);
+  const extraits = chercherExtraits({
+    question: `${question.enonce} ${(question.propositions ?? []).map((p) => p.texte).join(' ')}`,
+    matiereId: question.matiereId,
+    chapitres: chapitre ? [chapitre, ...d.chapitres.filter((c) => c.matiereId === question.matiereId && c.id !== chapitre.id)] : d.chapitres,
+    fiches: d.fiches,
+  });
+  const texte = await appeler({
+    mode: 'explication',
+    matiere: matiere?.nom,
+    contexte: assemblerContexte(extraits),
+    messages: [{ role: 'user', texte: demandeExplication(question, reponse) }],
+  });
+  await enregistrer<ExplicationDetaillee>('explications', { id: question.id, texte, majLe: Date.now() });
+  return texte;
+}
+
+/**
+ * Explique à la suite toutes les questions données (une requête chacune). S'arrête proprement
+ * quand le quota est atteint ; ce qui est déjà expliqué est conservé.
+ */
+export async function expliquerToutes(
+  d: Donnees,
+  questions: Question[],
+  progression: (faites: number, total: number) => void,
+  annule: () => boolean,
+): Promise<{ faites: number; erreur?: string }> {
+  let faites = 0;
+  for (const q of questions) {
+    if (annule()) break;
+    try {
+      await expliquerQuestion(d, q);
+      faites += 1;
+      progression(faites, questions.length);
+    } catch (e) {
+      return { faites, erreur: e instanceof ErreurAssistant ? e.message : 'Une erreur est survenue.' };
+    }
+  }
+  return { faites };
 }

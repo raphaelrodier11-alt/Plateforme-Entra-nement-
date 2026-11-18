@@ -182,3 +182,24 @@ describe('relais Gemini', () => {
     expect((await appel({ messages: [{ role: 'user', texte: 'Bonjour' }] })).status).toBe(503);
   });
 });
+
+describe('explication détaillée', () => {
+  it('le serveur utilise la consigne dédiée', async () => {
+    const CLE = 'cle-de-l-appareil-0123456789abcdefghijklmnopqrstuvwxyz';
+    const env: Env = { DB: creerD1(), ASSETS: {} as Fetcher, GEMINI_CHAT_KEY: 'cle-gemini-secrete' };
+    await app.request('/api/configurer', { method: 'POST', body: JSON.stringify({ cle: CLE }), headers: { 'Content-Type': 'application/json' } }, env);
+    const f = vi.fn(async (url: string) =>
+      String(url).includes('/models?')
+        ? Response.json({ models: [{ name: 'models/gemini-2.5-flash', supportedGenerationMethods: ['generateContent'] }] })
+        : Response.json({ candidates: [{ content: { parts: [{ text: 'Explication' }] } }] }),
+    );
+    vi.stubGlobal('fetch', f);
+    const r = await app.request('/api/assistant', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${CLE}` }, body: JSON.stringify({ mode: 'explication', messages: [{ role: 'user', texte: 'Explique' }] }) }, env);
+    expect(r.status).toBe(200);
+    const init = f.mock.calls.find(([u]) => String(u).includes(':generateContent'))![1] as RequestInit;
+    const corps = JSON.parse(init.body as string);
+    expect(corps.systemInstruction.parts[0].text).toContain('Analyse de chaque proposition');
+    expect(corps.systemInstruction.parts[0].text).toContain('connaissance générale');
+    vi.unstubAllGlobals();
+  });
+});
