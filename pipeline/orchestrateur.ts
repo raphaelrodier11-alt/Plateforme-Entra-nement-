@@ -101,7 +101,11 @@ export async function executer(d: Dependances): Promise<Issue> {
   const dossierCours = idDossier(reglages?.dossierCours);
   const dossierAnciens = idDossier(reglages?.dossierAnciens);
   const dossierAnnales = idDossier(reglages?.dossierAnnales);
-  const driveConfigure = !!dossierCours && !!dossierAnnales;
+  // Drives ajoutés par l'utilisateur, avec leur nom et leur type.
+  const supplementaires = (reglages?.drives ?? [])
+    .map((x) => ({ ...x, dossier: idDossier(x.lien) }))
+    .filter((x): x is typeof x & { dossier: string } => !!x.dossier);
+  const driveConfigure = (!!dossierCours && !!dossierAnnales) || supplementaires.length > 0;
   const jeton = driveConfigure ? await d.stockage.jetonDrive() : undefined;
   const avecDrive = driveConfigure && !!jeton;
   const depotsActuels = (): Depot[] => memoire.liste<Depot>('depots');
@@ -191,10 +195,13 @@ export async function executer(d: Dependances): Promise<Issue> {
     await majEtat({ statut: 'en_cours', message: undefined, driveConnecte: avecDrive });
 
     if (scanDu) {
+      const deType = (type: 'cours' | 'annales' | 'anciens') => supplementaires.filter((x) => x.type === type).map((x) => x.dossier);
       await scanner(contexte, {
-        cours: [...(avecDrive ? [dossierCours!] : []), ...(avecDepot ? [DOSSIER_DEPOT.cours] : [])],
-        annales: [...(avecDrive ? [dossierAnnales!] : []), ...(avecDepot ? [DOSSIER_DEPOT.annales] : [])],
-        anciens: [...(avecDrive && dossierAnciens ? [dossierAnciens] : []), ...(avecDepot ? [DOSSIER_DEPOT.anciens] : [])],
+        cours: [...(avecDrive && dossierCours ? [dossierCours] : []), ...(avecDrive ? deType('cours') : []), ...(avecDepot ? [DOSSIER_DEPOT.cours] : [])],
+        annales: [...(avecDrive && dossierAnnales ? [dossierAnnales] : []), ...(avecDrive ? deType('annales') : []), ...(avecDepot ? [DOSSIER_DEPOT.annales] : [])],
+        anciens: [...(avecDrive && dossierAnciens ? [dossierAnciens] : []), ...(avecDrive ? deType('anciens') : []), ...(avecDepot ? [DOSSIER_DEPOT.anciens] : [])],
+        noms: Object.fromEntries(supplementaires.map((x) => [x.dossier, x.nom])),
+        tolerants: supplementaires.map((x) => x.dossier),
         garde: avecDrive,
       });
       await majEtat({ dernierScan: maintenant });

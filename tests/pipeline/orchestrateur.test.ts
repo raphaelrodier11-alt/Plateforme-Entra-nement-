@@ -394,3 +394,41 @@ describe('pipeline : scans et plafond de dépense', () => {
     expect(stockage.liste<Fichier>('fichiers').every((f) => f.etat === 'a_jour')).toBe(true);
   });
 });
+
+describe('Drives ajoutés par l\'utilisateur', () => {
+  const PAUL = 'drive-de-paul-0123456789abcdef';
+  const ajouter = (drives: unknown[]) =>
+    stockage.ecrire('reglages', [
+      {
+        id: 'principal',
+        dossierCours: `https://drive.google.com/drive/folders/${COURS}`,
+        dossierAnnales: `https://drive.google.com/drive/folders/${ANNALES}?usp=sharing`,
+        drives,
+        modeGratuit: false,
+      },
+    ]);
+
+  it('lit un Drive nommé, garde son nom sur ses fichiers et ne touche pas aux autres', async () => {
+    await ajouter([{ id: 'd1', nom: 'Fiches de Paul', lien: `https://drive.google.com/drive/folders/${PAUL}`, type: 'cours' }]);
+    drive.dossiers.set(PAUL, [fichier('f-paul', 'SEMESTRE 1/PNEUMO/Asthme.pdf', COURS_IC.replaceAll('Insuffisance cardiaque', 'Asthme'))]);
+    await passer();
+    const fichiers = stockage.liste<Fichier>('fichiers');
+    expect(fichiers.find((f) => f.id === 'f-paul')).toMatchObject({ role: 'cours', source: 'Fiches de Paul' });
+    expect(fichiers.find((f) => f.id === 'f-ic')?.source).toBeUndefined();
+  });
+
+  it('un Drive ajouté inaccessible est signalé sans arrêter le passage ni supprimer ses fichiers', async () => {
+    await ajouter([{ id: 'd1', nom: 'Fiches de Paul', lien: `https://drive.google.com/drive/folders/${PAUL}`, type: 'cours' }]);
+    drive.dossiers.set(PAUL, [fichier('f-paul', 'PNEUMO/Asthme.pdf', COURS_IC)]);
+    await passer();
+    const lister = drive.lister.bind(drive);
+    drive.lister = async (id: string) => {
+      if (id === PAUL) throw new Error('403');
+      return lister(id);
+    };
+    maintenant += SEMAINE_MS + 1;
+    expect(await passer()).not.toBe('erreur');
+    expect(stockage.un<Fichier>('fichiers', 'f-paul')?.etat).not.toBe('supprime');
+    expect(stockage.liste<NotificationApp>('notifications').some((n) => n.titre.includes('inaccessible'))).toBe(true);
+  });
+});

@@ -89,6 +89,8 @@ export interface Fichier {
   chapitreId?: string;
   /** Chapitre choisi par l'utilisateur à l'envoi (complément) : le classement par IA est sauté. */
   chapitreImpose?: string;
+  /** Nom du Drive d'où vient le fichier, quand il a été ajouté par l'utilisateur. */
+  source?: string;
   partielId?: string;
   lien?: string;
   /** Nombre d'échecs de traitement ; au-delà de 3, le fichier est laissé de côté. */
@@ -505,8 +507,19 @@ export interface Evenement {
   journeeEntiere: boolean;
 }
 
+/** Un Drive ajouté par l'utilisateur, avec le nom qu'il lui a donné et ce qu'il contient. */
+export interface DriveSupplementaire {
+  id: string;
+  nom: string;
+  /** Lien du dossier Google Drive. */
+  lien: string;
+  type: 'cours' | 'annales' | 'anciens';
+}
+
 export interface Reglages {
   id: 'principal';
+  /** Drives ajoutés en plus des trois dossiers principaux. */
+  drives?: DriveSupplementaire[];
   /** Prénom affiché dans le message d'accueil. */
   prenom?: string;
   /** Lien .ics public du calendrier iCloud. */

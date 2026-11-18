@@ -8,7 +8,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useEtatSync } from '../App';
 import { animationsActives, reglerAnimations } from '../lib/animations';
 import { choisirTheme, lireTheme, type Theme } from '../lib/theme';
-import { CRENEAUX, type Creneau, type Reglages as TypeReglages } from '../../shared/types';
+import { CRENEAUX, type Creneau, type DriveSupplementaire, type Reglages as TypeReglages } from '../../shared/types';
 import { Bouton, Carte, Pastille, Puce, STYLE_CHAMP, TitrePage } from '../composants/ui';
 import { base } from '../db/base';
 import { enregistrer, synchroniser } from '../db/sync';
@@ -472,6 +472,79 @@ function SectionDonnees() {
   );
 }
 
+const TYPES_DRIVE: { valeur: DriveSupplementaire['type']; libelle: string }[] = [
+  { valeur: 'cours', libelle: 'Cours' },
+  { valeur: 'annales', libelle: 'Annales' },
+  { valeur: 'anciens', libelle: 'Anciennes versions' },
+];
+
+/** Drives ajoutés à la demande : un nom, un type, un lien. Lecture seule, comme les autres. */
+function SectionAutresDrives({ reglages }: { reglages: TypeReglages }) {
+  const drives = reglages.drives ?? [];
+  const [nom, setNom] = useState('');
+  const [lien, setLien] = useState('');
+  const [type, setType] = useState<DriveSupplementaire['type']>('cours');
+  const [erreur, setErreur] = useState<string | undefined>();
+
+  const sauver = (suivants: DriveSupplementaire[]) =>
+    enregistrer('reglages', { ...reglages, drives: suivants.length ? suivants : undefined, majLe: Date.now() });
+
+  const ajouter = async () => {
+    if (!nom.trim()) return setErreur('Donne un nom à ce Drive.');
+    if (!/\/folders\/[\w-]{10,}|^[\w-]{25,}$/.test(lien.trim())) return setErreur('Colle le lien d\'un dossier Google Drive (https://drive.google.com/drive/folders/…).');
+    setErreur(undefined);
+    await sauver([...drives, { id: crypto.randomUUID(), nom: nom.trim().slice(0, 60), lien: lien.trim(), type }]);
+    setNom('');
+    setLien('');
+  };
+
+  return (
+    <Carte titre="Autres Drives">
+      <p className="mb-3 text-sm text-texte-2">
+        Ajoute autant de Drives que tu veux et donne-leur le nom que tu veux. Ils sont lus en lecture seule avec ton compte
+        Google connecté (il doit y avoir accès) ; la matière vient des dossiers, et les fichiers gardent le nom du Drive d'où ils viennent.
+      </p>
+      {drives.length > 0 && (
+        <ul className="mb-4 space-y-2">
+          {drives.map((x) => (
+            <li key={x.id} className="flex items-center gap-3 rounded-2xl bg-surface-2 p-3">
+              <HardDrive size={18} className="shrink-0 text-muet" aria-hidden />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{x.nom}</span>
+                <span className="text-xs text-muet">{TYPES_DRIVE.find((t) => t.valeur === x.type)?.libelle}</span>
+              </span>
+              <Bouton variante="discret" icone={Trash2} className="min-h-9 px-3" aria-label={`Retirer le Drive ${x.nom}`} onClick={() => void sauver(drives.filter((d) => d.id !== x.id))}>
+                Retirer
+              </Bouton>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="space-y-3">
+        <label className="block text-sm">
+          <span className="mb-1 block text-xs text-muet">Nom du Drive</span>
+          <input value={nom} onChange={(e) => setNom(e.target.value)} maxLength={60} placeholder="Ex. : Fiches de Paul" className={STYLE_CHAMP} />
+        </label>
+        <label className="block text-sm">
+          <span className="mb-1 block text-xs text-muet">Lien du dossier</span>
+          <input type="url" value={lien} onChange={(e) => setLien(e.target.value)} placeholder="https://drive.google.com/drive/folders/…" className={STYLE_CHAMP} />
+        </label>
+        <div>
+          <span className="mb-1.5 block text-xs text-muet">Il contient…</span>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Type de contenu">
+            {TYPES_DRIVE.map((t) => (
+              <Puce key={t.valeur} actif={type === t.valeur} onClick={() => setType(t.valeur)}>{t.libelle}</Puce>
+            ))}
+          </div>
+        </div>
+        {erreur && <p role="alert" className="text-sm text-critique">{erreur}</p>}
+        <Bouton variante="primaire" icone={HardDrive} onClick={() => void ajouter()}>Ajouter ce Drive</Bouton>
+        <p className="text-xs text-muet">Il sera lu au prochain passage de l'import (ou lance « Vérifier le drive maintenant » dans Mises à jour).</p>
+      </div>
+    </Carte>
+  );
+}
+
 function SectionApparence() {
   const d = useDonnees();
   const [prenom, setPrenom] = useState(d.reglages.prenom ?? '');
@@ -542,6 +615,7 @@ export function Reglages() {
       <SectionLien />
       <SectionApparence />
       <SectionDrive reglages={d.reglages} />
+      <SectionAutresDrives reglages={d.reglages} />
       <SectionCalendrier reglages={d.reglages} />
       <SectionIa reglages={d.reglages} />
       <SectionDonnees />

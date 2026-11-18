@@ -69,6 +69,10 @@ export interface SourcesScan {
   annales: string[];
   /** Anciennes versions des cours, gardées pour être comparées. */
   anciens?: string[];
+  /** Nom donné par l'utilisateur à un Drive ajouté (par identifiant de dossier). */
+  noms?: Record<string, string>;
+  /** Drives ajoutés : s'ils sont inaccessibles, on le signale sans arrêter le passage. */
+  tolerants?: string[];
   /**
    * Vrai quand un drive est connecté : un drive qui paraît soudain vide est
    * alors plus probablement une panne qu'une suppression générale.
@@ -77,17 +81,34 @@ export interface SourcesScan {
 }
 
 export async function scanner(c: Contexte, sources: SourcesScan): Promise<BilanScan> {
-  const listes: [RoleFichier, FichierDrive[]][] = [];
-  for (const dossier of sources.cours) listes.push(['cours', await c.drive.lister(dossier)]);
-  for (const dossier of sources.annales) listes.push(['annale', await c.drive.lister(dossier)]);
-  for (const dossier of sources.anciens ?? []) listes.push(['ancien', await c.drive.lister(dossier)]);
+  const listes: [RoleFichier, FichierDrive[], string | undefined][] = [];
+  let listageIncomplet = false;
+  const lister = async (role: RoleFichier, dossier: string): Promise<void> => {
+    try {
+      listes.push([role, await c.drive.lister(dossier), sources.noms?.[dossier]]);
+    } catch (erreur) {
+      if (!sources.tolerants?.includes(dossier)) throw erreur;
+      // Drive ajouté mais inaccessible (droits, lien) : on le signale, et on ne marque rien comme supprimé.
+      listageIncomplet = true;
+      journal(`Un Drive ajouté est inaccessible : ${erreurPublique(erreur)}`);
+      await notifier(c, {
+        id: `drive-inaccessible:${dossier}`,
+        type: 'info',
+        titre: 'Un Drive est inaccessible',
+        message: `Le Drive « ${sources.noms?.[dossier] ?? 'sans nom'} » n'a pas pu être lu : vérifie le lien et que ton compte Google y a accès.`,
+      });
+    }
+  };
+  for (const dossier of sources.cours) await lister('cours', dossier);
+  for (const dossier of sources.annales) await lister('annale', dossier);
+  for (const dossier of sources.anciens ?? []) await lister('ancien', dossier);
   const connus = c.memoire.liste<Fichier>('fichiers');
   const bilan: BilanScan = { total: 0, nouveaux: 0, modifies: 0, supprimes: 0 };
   const vus = new Set<string>();
   const ignores = new Map<string, number>();
   let listes_total = 0;
 
-  for (const [role, liste] of listes) {
+  for (const [role, liste, nomSource] of listes) {
     listes_total += liste.length;
     for (const f of liste) {
       if (natureDe(f.mimeType) === 'ignore') {
@@ -112,11 +133,12 @@ export async function scanner(c: Contexte, sources: SourcesScan): Promise<BilanS
           empreinte: f.empreinte,
           lien: f.lien,
           ...(f.chapitreId ? { chapitreImpose: f.chapitreId } : {}),
+          ...(nomSource ? { source: nomSource } : {}),
         });
         continue;
       }
 
-      const suivant: Fichier = { ...connu, nom: f.nom, chemin: f.chemin, mimeType: f.mimeType, lien: f.lien, ...(f.chapitreId ? { chapitreImpose: f.chapitreId } : {}) };
+      const suivant: Fichier = { ...connu, nom: f.nom, chemin: f.chemin, mimeType: f.mimeType, lien: f.lien, ...(f.chapitreId ? { chapitreImpose: f.chapitreId } : {}), ...(nomSource ? { source: nomSource } : {}) };
       const change =
         connu.modifieLe !== f.modifieLe ||
         (!!connu.empreinte && !!f.empreinte && connu.empreinte !== f.empreinte);
@@ -164,7 +186,7 @@ export async function scanner(c: Contexte, sources: SourcesScan): Promise<BilanS
     throw new Error('Le drive ne renvoie aucun fichier : vérifie les dossiers indiqués dans les réglages.');
   }
 
-  for (const connu of actifs) {
+  for (const connu of listageIncomplet ? [] : actifs) {
     if (vus.has(connu.id)) continue;
     bilan.supprimes += 1;
     await c.memoire.ecrire<Fichier>('fichiers', { ...connu, etat: 'supprime' });
