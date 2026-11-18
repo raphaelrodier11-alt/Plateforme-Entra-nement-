@@ -45,6 +45,7 @@ import {
 } from '../composants/ui';
 import { enregistrer, enregistrerPlusieurs, supprimer, synchroniser } from '../db/sync';
 import { useDonnees } from '../etat/donnees';
+import { PeriodesRevision } from '../composants/RevisionPure';
 import { BarresClassees } from '../graphiques/Graphiques';
 import { LIBELLE_TACHE, lancerTache } from '../lib/actions';
 import { actualiserCalendrier, derniereLecture, type ResultatCalendrier } from '../lib/calendrier';
@@ -466,6 +467,13 @@ function texteAlerte(alerte: AlertePlanning, nomExamen: (id: string) => string):
 function CarteSeance({ seance }: { seance: Seance }) {
   const d = useDonnees();
   const navigate = useNavigate();
+  const faites = new Set(d.reglages.tachesFaites ?? []);
+  const cocher = (i: number) => {
+    const cle = `${seance.id}|${i}`;
+    const suite = faites.has(cle) ? [...faites].filter((c) => c !== cle) : [...faites, cle];
+    // On ne garde que les 400 dernières coches pour ne pas faire grossir les réglages.
+    void enregistrer('reglages', { ...d.reglages, tachesFaites: suite.slice(-400) });
+  };
   return (
     <div className="rounded-xl border border-bord bg-surface-2 p-3">
       <p className="chiffres flex flex-wrap items-center gap-2 text-xs text-texte-2">
@@ -482,11 +490,21 @@ function CarteSeance({ seance }: { seance: Seance }) {
       </p>
       <ul className="mt-2 space-y-1">
         {seance.taches.map((t, i) => (
-          <li key={i}>
+          <li key={i} className="flex items-center gap-1">
+            <input
+              type="checkbox"
+              checked={faites.has(`${seance.id}|${i}`)}
+              onChange={() => cocher(i)}
+              aria-label="Tâche faite"
+              className="size-5 shrink-0 accent-[var(--color-accent)]"
+            />
             <button
               type="button"
               onClick={() => void lancerTache(d, t).then((url) => navigate(url))}
-              className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-surface-3"
+              className={cx(
+                'flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-surface-3',
+                faites.has(`${seance.id}|${i}`) && 'opacity-50 line-through',
+              )}
             >
               <span className="chiffres w-12 shrink-0 text-xs text-muet">{dureeLisible(t.dureeMin)}</span>
               <span className="min-w-0 flex-1">
@@ -534,6 +552,7 @@ export function PagePlanning() {
       />
       <Disponibilites />
       <ExamensEtCalendrier />
+      <PeriodesRevision />
 
       {planning.alertes.length > 0 && (
         <ul className="space-y-2">

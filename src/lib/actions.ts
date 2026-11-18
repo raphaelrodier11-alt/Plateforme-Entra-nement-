@@ -118,7 +118,20 @@ export async function lancerTache(d: Donnees, tache: TachePlanifiee): Promise<st
       );
     case 'decouverte':
     case 'revision_generale':
+    case 'relecture_fiche':
       return `/chapitre/${tache.chapitreId}`;
+    case 'carnet':
+      return '/a-revoir';
+    case 'interro_orale':
+      return '/assistant?vue=interro';
+    case 'flashcards':
+      return tache.chapitreId ? `/chapitre/${tache.chapitreId}/flashcards` : '/cours';
+    case 'annales': {
+      const questions = choisirQuestions(d, { matiereId: tache.matiereId, source: 'annale', nombre: Math.max(8, Math.round(tache.dureeMin / 1.5)) });
+      if (questions.length === 0) return `/chapitre/${tache.chapitreId}`;
+      const id = await demarrerSession({ type: 'qcm', titre: 'Annales', questions, matiereId: tache.matiereId });
+      return `/session/${id}`;
+    }
   }
 }
 
@@ -128,4 +141,9 @@ export const LIBELLE_TACHE: Record<TachePlanifiee['type'], string> = {
   erreurs: 'Révision des erreurs',
   examen_blanc: 'Examen blanc',
   revision_generale: 'Révision générale : fiche et erreurs',
+  relecture_fiche: 'Relire la fiche du chapitre',
+  carnet: 'Carnet « À revoir » : relire et se tester',
+  annales: 'Refaire des annales',
+  interro_orale: 'Interro orale avec le Dr Rodier',
+  flashcards: 'Flashcards du chapitre',
 };

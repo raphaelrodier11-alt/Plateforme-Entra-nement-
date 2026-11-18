@@ -16,6 +16,8 @@ import {
   type StatsMatiere,
 } from '../../shared/progression';
 import { besoinRevision, difficulteRessentie, maitriseEffective } from '../../shared/evaluations';
+import { cleJour } from '../../shared/dates';
+import { notionDue } from '../../shared/notions';
 import { recommander, type Recommandation } from '../../shared/recommandations';
 import { etatsRepetition, type EtatRepetition } from '../../shared/repetition';
 import {
@@ -209,7 +211,11 @@ export function calculer(brutInitial: Brut, maintenant: number): Donnees {
         avancement: s.avancement,
         couverture: s.couverture,
         poidsExamen: s.poidsExamen,
+        maitrise: maitriseParChapitre.get(s.chapitreId),
+        difficulte: difficulteRessentie(evaluationParChapitre.get(s.chapitreId)),
+        notionsDues: (brut.notions ?? []).filter((n) => n.chapitreId === s.chapitreId && notionDue(n, cleJour(maintenant))).length,
       })),
+    revisionsPures: reglages.revisionsPures,
     echeancesErreurs: [...erreurs, ...aRevoir]
       .map((q) => repetitions.get(q.id)?.echeance)
       .filter((e): e is number => e !== undefined),

@@ -22,6 +22,7 @@ import {
   instantDuJour,
   joursEntre,
 } from './dates';
+import { PART_TEMPS, besoinRevision, niveauRevision } from './evaluations';
 import { CRENEAUX } from './types';
 import type { Creneau, Disponibilite, Evenement, Examen, Reglages } from './types';
 
@@ -46,6 +47,22 @@ export interface ChapitrePlanifiable {
   couverture: number;
   /** Part du chapitre dans les partiels de sa matière. */
   poidsExamen: number;
+  /** Maîtrise effective (ce que tu as déclaré, fusionné avec tes résultats) ; à défaut, `avancement`. */
+  maitrise?: number;
+  /** Difficulté ressentie, de 1 à 5. */
+  difficulte?: number;
+  /** Notions du carnet « À revoir » à relire pour ce chapitre. */
+  notionsDues?: number;
+}
+
+/** Période de révision pure : plus de nouveau cours, seulement de la révision. */
+export interface PeriodeRevision {
+  id: string;
+  /** Premier et dernier jour (AAAA-MM-JJ), inclus. */
+  debut: string;
+  fin: string;
+  /** Matière révisée ; absente : toutes les matières. */
+  matiereId?: string;
 }
 
 export type TypeTachePlanning =
@@ -53,7 +70,16 @@ export type TypeTachePlanning =
   | 'qcm'
   | 'erreurs'
   | 'examen_blanc'
-  | 'revision_generale';
+  | 'revision_generale'
+  // Révision pure : des tâches précises, chacune avec son document.
+  | 'relecture_fiche'
+  | 'carnet'
+  | 'annales'
+  | 'interro_orale'
+  | 'flashcards';
+
+/** Ordre dans lequel les blocs d'une séance de révision pure varient. */
+export const ROTATION_REVISION: TypeTachePlanning[] = ['relecture_fiche', 'qcm', 'carnet', 'annales', 'interro_orale', 'flashcards'];
 
 export interface TachePlanifiee {
   type: TypeTachePlanning;
@@ -98,6 +124,13 @@ export interface EntreePlanning {
   chapitres: ChapitrePlanifiable[];
   /** Échéances (ms) des erreurs suivies en répétition espacée. */
   echeancesErreurs?: number[];
+  /** Périodes de révision pure choisies par l'étudiant. */
+  revisionsPures?: PeriodeRevision[];
+}
+
+/** Période de révision pure qui couvre ce jour, s'il y en a une. */
+export function revisionPureDu(jour: string, periodes: PeriodeRevision[] | undefined): PeriodeRevision | undefined {
+  return (periodes ?? []).find((p) => p.debut <= jour && jour <= p.fin);
 }
 
 type Intervalle = [number, number];
@@ -340,7 +373,10 @@ export function calculerPlanning(e: EntreePlanning): Planning {
     if (!avant) alertes.push({ type: 'sans_seance_avant_examen', examenId: x.id });
   }
 
-  const simule = new Map(e.chapitres.map((c) => [c.id, c.avancement]));
+  const simule = new Map(e.chapitres.map((c) => [c.id, c.maitrise ?? c.avancement]));
+  // Niveau de départ de chaque chapitre (faible, moyen, fort) : il ne change pas pendant la simulation.
+  const niveauDepart = new Map(e.chapitres.map((c) => [c.id, niveauRevision(besoinRevision(c.maitrise ?? c.avancement, c.difficulte ?? 3))]));
+  const minutesParNiveau = { faible: 0, moyen: 0, fort: 0 };
   const minutesParMatiere: Record<string, number> = {};
   const echeances = [...(e.echeancesErreurs ?? [])].sort((a, b) => a - b);
   let curseurErreurs = 0;
@@ -385,18 +421,29 @@ export function calculerPlanning(e: EntreePlanning): Planning {
     }
 
     const minutesChapitre = new Map<string, number>();
+    const periodePure = revisionPureDu(seance.date, e.revisionsPures);
+    const indiceJour = joursEntre(aujourdHui, seance.date);
+    let numeroBloc = 0;
     while (reste >= 15 && e.chapitres.length > 0) {
       const bloc = reste >= BLOC_MIN + 15 ? BLOC_MIN : reste;
 
       let meilleur: ChapitrePlanifiable | undefined;
       let meilleurScore = 0;
       for (const c of e.chapitres) {
+        if (periodePure?.matiereId && c.matiereId !== periodePure.matiereId) continue;
         const u = urgence(c.matiereId, seance.date, examensParMatiere, desExamensExistent);
         if (u === 0) continue;
-        const besoin = Math.max(BESOIN_PLANCHER, 1 - (simule.get(c.id) ?? 0));
+        // Besoin : faiblesse pondérée par la difficulté ressentie. Points faibles d'abord (≈ 60 % du temps),
+        // les moyens ensuite (≈ 25 %), un peu d'entretien des points forts (≈ 15 %).
+        const besoin = Math.max(BESOIN_PLANCHER, besoinRevision(simule.get(c.id) ?? 0, c.difficulte ?? 3));
         const frequence = c.poidsExamen / (maxPoids.get(c.matiereId) || 1);
         const equilibre = 1 / (1 + (minutesParMatiere[c.matiereId] ?? 0) / 60);
-        let score = besoin * (0.6 + 0.4 * frequence) * u * equilibre;
+        // Régulation : on vise 60 % / 25 % / 15 % du temps selon le niveau de départ du chapitre.
+        const niveau = niveauDepart.get(c.id) ?? 'moyen';
+        const totalMin = minutesParNiveau.faible + minutesParNiveau.moyen + minutesParNiveau.fort;
+        const partReelle = totalMin > 0 ? minutesParNiveau[niveau] / totalMin : PART_TEMPS[niveau];
+        const regulation = Math.min(4, Math.max(0.25, PART_TEMPS[niveau] / Math.max(0.05, partReelle)));
+        let score = besoin * regulation * (0.6 + 0.4 * frequence) * u * equilibre;
         // Pas plus d'une heure d'affilée sur le même chapitre.
         if ((minutesChapitre.get(c.id) ?? 0) >= 2 * BLOC_MIN) score *= 0.25;
         if (score > meilleurScore) {
@@ -414,7 +461,15 @@ export function calculerPlanning(e: EntreePlanning): Planning {
 
       let type: TypeTachePlanning = jamaisVu ? 'decouverte' : 'qcm';
       const motifs: string[] = [];
-      if (jours !== undefined && jours <= 1) {
+      if (periodePure) {
+        // Révision pure : jamais de nouveau cours, des tâches précises qui varient d'un bloc à l'autre.
+        let candidat = ROTATION_REVISION[(indiceJour + numeroBloc) % ROTATION_REVISION.length]!;
+        if (candidat === 'carnet' && !(c.notionsDues && c.notionsDues > 0)) candidat = 'relecture_fiche';
+        type = candidat;
+        motifs.push('Révision pure');
+        motifs.push(`maîtrise ${Math.round((simule.get(c.id) ?? 0) * 100)} %`);
+        if (jours !== undefined) motifs.push(`examen dans ${jours} j`);
+      } else if (jours !== undefined && jours <= 1) {
         type = 'revision_generale';
         motifs.push(jours === 0 ? "Jour de l'examen" : "Veille d'examen");
       } else {
@@ -437,7 +492,9 @@ export function calculerPlanning(e: EntreePlanning): Planning {
       }
 
       // Le travail prévu fait baisser le besoin : le plan passe aux suivants.
-      simule.set(c.id, avancement + (1 - avancement) * 0.3 * (bloc / BLOC_MIN));
+      simule.set(c.id, avancement + (1 - avancement) * (periodePure ? 0.4 : 0.3) * (bloc / BLOC_MIN));
+      numeroBloc += 1;
+      minutesParNiveau[niveauDepart.get(c.id) ?? 'moyen'] += bloc;
       minutesChapitre.set(c.id, (minutesChapitre.get(c.id) ?? 0) + bloc);
       minutesParMatiere[c.matiereId] = (minutesParMatiere[c.matiereId] ?? 0) + bloc;
       reste -= bloc;

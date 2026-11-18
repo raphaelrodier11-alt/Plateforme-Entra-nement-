@@ -526,6 +526,10 @@ export interface Reglages {
   id: 'principal';
   /** Drives ajoutés en plus des trois dossiers principaux. */
   drives?: DriveSupplementaire[];
+  /** Périodes de révision pure choisies par l'étudiant. */
+  revisionsPures?: { id: string; debut: string; fin: string; matiereId?: string }[];
+  /** Tâches du planning cochées (clé `idSeance|rang`), pour la checklist du jour. */
+  tachesFaites?: string[];
   /** Prénom affiché dans le message d'accueil. */
   prenom?: string;
   /** Lien .ics public du calendrier iCloud. */

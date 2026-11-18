@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HEURE_MS, MINUTE_MS, instantDuJour } from '../shared/dates';
+import { HEURE_MS, MINUTE_MS, instantDuJour, joursEntre } from '../shared/dates';
 import {
   calculerPlanning,
   placerSeances,
@@ -399,5 +399,75 @@ describe('priorités du planning', () => {
       evenements: [evenement('2026-11-17', 18, 20)],
     });
     expect(calculerPlanning(e)).toEqual(calculerPlanning(e));
+  });
+});
+
+describe('emploi du temps adaptatif et révision pure', () => {
+  const semaine = [0, 1, 2, 3, 4].map((j) => ({ id: `2026-11-${16 + j}`, creneaux: { soir: 90 } }));
+
+  it('donne plus de temps aux points faibles, sans oublier les points forts', () => {
+    const planning = calculerPlanning(
+      entree({
+        disponibilites: semaine,
+        chapitres: [
+          { ...chapitre('faible', 'cardio', 0.1), maitrise: 0.1 },
+          { ...chapitre('moyen', 'cardio', 0.5), maitrise: 0.55 },
+          { ...chapitre('fort', 'cardio', 0.9), maitrise: 0.92 },
+        ],
+      }),
+    );
+    const faible = minutesDuChapitre(planning, 'faible');
+    const moyen = minutesDuChapitre(planning, 'moyen');
+    const fort = minutesDuChapitre(planning, 'fort');
+    expect(faible).toBeGreaterThan(moyen);
+    expect(moyen).toBeGreaterThanOrEqual(fort);
+    expect(fort).toBeGreaterThan(0);
+    expect(faible / (faible + moyen + fort)).toBeGreaterThan(0.45);
+  });
+
+  it('un chapitre que tu as déclaré maîtrisé passe après un chapitre jugé difficile et faible', () => {
+    const planning = calculerPlanning(
+      entree({
+        disponibilites: semaine,
+        chapitres: [
+          { ...chapitre('declare-fort', 'cardio', 0), maitrise: 0.9, difficulte: 1 },
+          { ...chapitre('declare-dur', 'cardio', 0), maitrise: 0.3, difficulte: 5 },
+        ],
+      }),
+    );
+    expect(planning.seances[0]!.taches[0]!.chapitreId).toBe('declare-dur');
+  });
+
+  it('en révision pure : aucune découverte, tâches précises qui varient, seulement la matière choisie', () => {
+    const jours = ['2026-11-16', '2026-11-17', '2026-11-18'];
+    const planning = calculerPlanning(
+      entree({
+        disponibilites: semaine,
+        examens: [{ id: 'x', matiereId: 'cardio', titre: 'Partiel', date: '2026-11-19', source: 'manuel' }],
+        chapitres: [
+          { ...chapitre('a', 'cardio', 0), notionsDues: 2 },
+          { ...chapitre('b', 'cardio', 0.3) },
+          chapitre('autre', 'nephro', 0),
+        ],
+        revisionsPures: [{ id: 'p', debut: jours[0]!, fin: jours[2]!, matiereId: 'cardio' }],
+      }),
+    );
+    const taches = planning.seances.filter((s) => jours.includes(s.date) && joursEntre(s.date, '2026-11-18') >= 0).flatMap((s) => s.taches);
+    const types = new Set(taches.map((t) => t.type));
+    expect(types.has('decouverte')).toBe(false);
+    expect(taches.filter((t) => t.chapitreId).every((t) => t.matiereId === 'cardio')).toBe(true);
+    expect([...types].some((t) => ['relecture_fiche', 'carnet', 'annales', 'interro_orale', 'flashcards'].includes(t))).toBe(true);
+    expect(taches.some((t) => t.raison.includes('Révision pure'))).toBe(true);
+  });
+
+  it('hors de la période de révision pure, le planning reste normal', () => {
+    const planning = calculerPlanning(
+      entree({
+        disponibilites: semaine,
+        chapitres: [chapitre('a', 'cardio', 0)],
+        revisionsPures: [{ id: 'p', debut: '2027-01-01', fin: '2027-01-10' }],
+      }),
+    );
+    expect(planning.seances[0]!.taches.some((t) => t.type === 'decouverte')).toBe(true);
   });
 });
