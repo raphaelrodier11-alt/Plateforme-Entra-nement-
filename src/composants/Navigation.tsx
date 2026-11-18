@@ -8,6 +8,7 @@ import {
   ChartLine,
   CircleAlert,
   Cloud,
+  Brain,
   CheckCheck,
   CloudOff,
   Dumbbell,
@@ -27,6 +28,8 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useEtatSync } from '../App';
 import type { EtatSync } from '../db/sync';
+import { cleJour } from '../../shared/dates';
+import { notionDue } from '../../shared/notions';
 import { useDonnees } from '../etat/donnees';
 import { Docteur } from './Docteur';
 import { cx } from './ui';
@@ -69,7 +72,8 @@ function Compteur({ n }: { n?: number }) {
 }
 
 export function Navigation() {
-  const { erreursDues, nbAValider, nbNotificationsNonLues } = useDonnees();
+  const d = useDonnees();
+  const { erreursDues, nbAValider, nbNotificationsNonLues } = d;
   const sync = useEtatSync();
   const [plus, setPlus] = useState(false);
 
@@ -81,6 +85,7 @@ export function Navigation() {
     { vers: '/qcm', libelle: 'QCM', icone: ListChecks },
     { vers: '/entrainements', libelle: 'Entraînements', icone: Dumbbell },
     { vers: '/erreurs', libelle: 'Erreurs', icone: CircleAlert, compte: erreursDues.length },
+    { vers: '/a-revoir', libelle: 'À revoir', icone: Brain, compte: d.notions.filter((n) => notionDue(n, cleJour(d.maintenant))).length },
     { vers: '/planning', libelle: 'Planning', icone: CalendarDays },
     { vers: '/examens', libelle: 'Examens', icone: GraduationCap },
     { vers: '/avancement', libelle: 'Mon avancement', icone: CheckCheck },

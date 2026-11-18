@@ -24,9 +24,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { corriger, scoreSession, type Correction } from '../../shared/bareme';
 import { estIncontournable, nbPartiels, suggererTypeErreur } from '../../shared/marqueurs';
-import type { Question, ReponseDonnee, Session, Tentative, TypeErreur } from '../../shared/types';
+import type { Notion, Question, ReponseDonnee, Session, Tentative, TypeErreur } from '../../shared/types';
 import { ExportCopie } from '../composants/ExportCopie';
 import { ContexteQuestion } from '../composants/PublierContexte';
+import { appliquerMiniTest } from '../lib/notions';
+import { RappelsCibles } from '../composants/RappelsCibles';
 import { RessentiChapitre } from '../composants/Ressenti';
 import { ExpliquerToutes } from '../composants/ExpliquerToutes';
 import { QuestionVue } from '../composants/QuestionVue';
@@ -461,6 +463,26 @@ function Examen({ session, questions }: { session: Session; questions: Question[
 // Résultat : score et revue des réponses
 // ---------------------------------------------------------------------------
 
+/** Fin d'un mini-test : la notion est mise à jour (relecture espacée, ou ancrée). */
+function ResultatMiniTest({ session, tentatives }: { session: Session; tentatives: Tentative[] }) {
+  const d = useDonnees();
+  const [suivante, setSuivante] = useState<Notion | undefined>();
+  useEffect(() => {
+    if (session.notionId) void appliquerMiniTest(d, session, tentatives).then(setSuivante);
+    // Appliqué une seule fois (garde dans la base).
+  }, [session.id]);
+  if (!session.notionId || !suivante) return null;
+  return (
+    <p role="status" className="carte mb-4 p-4 text-sm">
+      {suivante.statut === 'ancree'
+        ? 'Bravo, la notion est ancrée : elle sort de ton carnet « À revoir ».'
+        : suivante.reussitesDeSuite > 0 && suivante.prochaineRevue
+          ? `Bien joué ! Prochaine relecture conseillée le ${new Date(suivante.prochaineRevue).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} (${suivante.reussitesDeSuite}/3).`
+          : "Pas encore ancrée : relis le rappel et refais le mini-test, c'est comme ça que ça rentre."}
+    </p>
+  );
+}
+
 /** À la fin d'une série : ton ressenti sur les chapitres travaillés, pour adapter l'emploi du temps. */
 function SectionRessenti({ questions }: { questions: Question[] }) {
   const { chapitreParId, evaluationParChapitre, maintenant } = useDonnees();
@@ -541,6 +563,10 @@ function Resultat({
       <ExportCopie session={session} questions={questions} tentatives={tentatives} noteSur20={score.noteSur20} points={score.points} total={score.total} />
 
       {ratees.length > 0 && <ExpliquerToutes questions={ratees} />}
+
+      <RappelsCibles session={session} ratees={ratees} />
+
+      <ResultatMiniTest session={session} tentatives={tentatives} />
 
       <SectionRessenti questions={questions} />
 

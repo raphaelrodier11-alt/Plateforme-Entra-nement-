@@ -98,6 +98,7 @@ export async function demarrerSession(params: {
   matiereId?: string;
   chapitreIds?: string[];
   dureeLimiteMs?: number;
+  notionId?: string;
 }): Promise<string> {
   const session: Session = {
     id: nouvelId(),
@@ -108,6 +109,7 @@ export async function demarrerSession(params: {
     chapitreIds: params.chapitreIds,
     questionIds: params.questions.map((q) => q.id),
     dureeLimiteMs: params.dureeLimiteMs,
+    ...(params.notionId ? { notionId: params.notionId } : {}),
     termine: false,
   };
   await enregistrer('sessions', session);

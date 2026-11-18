@@ -474,6 +474,8 @@ export interface Session {
   matiereId?: string;
   chapitreIds?: string[];
   questionIds: string[];
+  /** Mini-test d'une notion du carnet « À revoir ». */
+  notionId?: string;
   /** Limite de temps pour les examens chronométrés. */
   dureeLimiteMs?: number;
   points?: number;
@@ -793,5 +795,33 @@ export interface Evaluation {
   dejaVu?: boolean;
   /** Dernier jour d'étude, AAAA-MM-JJ (saisi, ou posé à la main pour du travail déjà fait). */
   etudieLe?: string;
+  majLe: number;
+}
+
+// ---------------------------------------------------------------------------
+// Notions à revoir (carnet « À revoir »)
+// ---------------------------------------------------------------------------
+
+/** Une notion de cours que tu ne maîtrises pas encore, née de tes erreurs. */
+export interface Notion {
+  /** `chapitreId|sectionId` (ou `chapitreId|general`). */
+  id: string;
+  matiereId: string;
+  chapitreId: string;
+  sectionId?: string;
+  titre: string;
+  /** Rappels de cours des questions ratées sur cette notion (dédoublonnés). */
+  rappels: string[];
+  /** Questions liées à la notion (pour le mini-test). */
+  questionIds: string[];
+  statut: 'a_revoir' | 'ancree';
+  /** Mini-tests réussis à la suite : à 3, la notion est ancrée. */
+  reussitesDeSuite: number;
+  echecs: number;
+  /** Prochaine relecture conseillée (AAAA-MM-JJ). */
+  prochaineRevue?: string;
+  /** Rappel approfondi par l'IA, si tu l'as demandé. */
+  profondeur?: string;
+  creeLe: number;
   majLe: number;
 }

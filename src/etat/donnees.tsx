@@ -14,7 +14,7 @@ const TABLES: (keyof Brut)[] = [
   'matieres', 'chapitres', 'questions', 'cas', 'fiches', 'flashcards', 'partiels',
   'fichiers', 'depots', 'actualisations', 'anomalies', 'illisibles', 'notifications', 'estimations', 'etat',
   'tentatives', 'sessions', 'disponibilites', 'examens', 'evenements', 'reglages',
-  'decisions', 'taches', 'revues', 'questionsPerso', 'entrainements', 'evaluations',
+  'decisions', 'taches', 'revues', 'questionsPerso', 'entrainements', 'evaluations', 'notions',
 ];
 
 async function toutLire(): Promise<Brut> {

@@ -419,3 +419,19 @@ export function descriptionQuestion(question: Question, reponse: ReponseDonnee |
   if (question.rappel) l.push(`Rappel de cours : ${question.rappel}`);
   return l.join('\n');
 }
+
+/** Rappel de cours approfondi sur une notion (sur demande). */
+export async function demanderApprofondissementNotion(p: { matiere?: string; sujet: string; rappels: string[]; contexte: string }): Promise<string> {
+  return appeler({
+    mode: 'document',
+    type: 'resume',
+    matiere: p.matiere,
+    contexte: p.contexte,
+    messages: [
+      {
+        role: 'user',
+        texte: `Rédige un rappel de cours approfondi à relire sur la notion : ${p.sujet}.\nExplique le mécanisme, les valeurs et critères utiles, les pièges classiques et propose un moyen mnémotechnique. Voici ce que l'étudiant a raté : ${p.rappels.join(' | ') || 'non précisé'}.`,
+      },
+    ],
+  });
+}

@@ -17,6 +17,7 @@ import { FournisseurDonnees, useDonnees } from './etat/donnees';
 import { capterCleDansAdresse, etatServeur, lireCle } from './lib/api';
 import { PERIODE_RELECTURE_MS, actualiserCalendrier } from './lib/calendrier';
 import { Accueil } from './pages/Accueil';
+import { ARevoir } from './pages/ARevoir';
 import { Assistant } from './pages/Assistant';
 import { Avancement } from './pages/Avancement';
 import { PageChapitre } from './pages/Chapitre';
@@ -140,6 +141,7 @@ export function App() {
               <Route path="/cours/:matiereId" element={<CoursMatiere />} />
               <Route path="/assistant" element={<Assistant />} />
               <Route path="/avancement" element={<Avancement />} />
+              <Route path="/a-revoir" element={<ARevoir />} />
               <Route path="/recherche" element={<Recherche />} />
               <Route path="/chapitre/:id" element={<PageChapitre />} />
               <Route path="/chapitre/:id/flashcards" element={<Flashcards />} />

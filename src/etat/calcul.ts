@@ -38,6 +38,7 @@ import {
   type Flashcard,
   type Matiere,
   type NotificationApp,
+  type Notion,
   type Partiel,
   type PassageIllisible,
   type Question,
@@ -56,6 +57,7 @@ export interface Brut {
   questionsPerso: Question[];
   entrainements: Entrainement[];
   evaluations: Evaluation[];
+  notions: Notion[];
   cas: CasClinique[];
   fiches: Fiche[];
   flashcards: Flashcard[];
