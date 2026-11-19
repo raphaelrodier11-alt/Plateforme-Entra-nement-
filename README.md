@@ -300,6 +300,20 @@ Le pipeline lit ton Moodle en **lecture seule**, via l'API officielle et un jeto
 
 Configuration : dans GitHub → Settings → Secrets → Actions, ajoute `MOODLE_URL` (adresse du site, sans `/` final) et `MOODLE_TOKEN` (jeton : Moodle → Préférences → Compte utilisateur → Clés de sécurité → « Moodle mobile web service »).
 
+## Cours : synthèse, complet, ultra complet
+
+Chaque chapitre a trois niveaux de lecture (onglets de la page du chapitre) :
+- **Fiche synthèse** : la fiche visuelle de révision (≈ 10 minutes) ;
+- **Cours complet** : le cours du drive remis au propre, structuré, annoté des pièges fréquents et illustré. Il est écrit automatiquement pour chaque chapitre, après la fiche ;
+- **Cours ultra complet** : beaucoup plus long (le pourquoi du comment, la physiopathologie, toutes les possibilités). Il se génère **à la demande** (bouton dans l'onglet) : il consomme beaucoup du quota gratuit, d'où la file d'attente.
+
+Illustrations (galerie qu'on fait défiler, image par image, avec agrandissement) :
+- **Figures du cours** extraites des PDF du drive (réduites en WebP ≤ 70 Ko, 16 par chapitre au maximum, logos répétés écartés) ;
+- **Images libres de droits** de Wikimedia Commons (licences CC BY, CC BY-SA, CC0, domaine public), liées et jamais copiées, avec le crédit et la licence affichés. La pertinence repose sur le titre du fichier : une image peut parfois être légèrement hors sujet ;
+- **Schémas dessinés par l'IA** (SVG nettoyé : aucun script ni ressource externe).
+
+Limites : les schémas « vectoriels » d'un PDF (non importés comme images) ne sont pas extraits ; les images d'internet ne s'affichent pas hors ligne ; les images stockées pèsent dans la base gratuite (≈ 0,5 Mo par chapitre au plus).
+
 ## Coûts
 
 **Tout est gratuit par défaut** : Cloudflare (Worker et base D1), GitHub Actions (dépôt

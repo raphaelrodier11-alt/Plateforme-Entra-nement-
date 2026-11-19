@@ -17,7 +17,9 @@ import {
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { BlocFiche, Fiche, NoeudArbre } from '../../shared/types';
 import { Bouton, cx } from '../composants/ui';
+import { Markdown } from '../composants/Markdown';
 import { FournisseurAnnotations, Surlignable } from './Annotations';
+import { GalerieImages } from './Galerie';
 
 // three.js est volumineux : la scène 3D n'est chargée qu'à l'ouverture.
 const Scene3DVue = lazy(() => import('./Scene3D'));
@@ -388,6 +390,10 @@ function Bloc({ bloc, cle }: { bloc: BlocFiche; cle: string }) {
           </ul>
         </Encadre>
       );
+    case 'paragraphe':
+      return <Markdown texte={bloc.contenu} className="text-sm leading-relaxed text-texte-2" />;
+    case 'images':
+      return <GalerieImages titre={bloc.titre} images={bloc.images} />;
     case 'scene3d':
       return (
         <Encadre icone={<Box size={14} aria-hidden />} titre={`Modèle 3D · ${bloc.scene.titre}`}>
@@ -399,7 +405,7 @@ function Bloc({ bloc, cle }: { bloc: BlocFiche; cle: string }) {
   }
 }
 
-export function RenduFiche({ fiche, filtre }: { fiche: Fiche; filtre?: (bloc: BlocFiche) => boolean }) {
+export function RenduFiche({ fiche, filtre }: { fiche: Pick<Fiche, 'sections' | 'chapitreId'>; filtre?: (bloc: BlocFiche) => boolean }) {
   const sections = fiche.sections
     .map((s) => ({ ...s, blocs: filtre ? s.blocs.filter(filtre) : s.blocs }))
     .filter((s) => s.blocs.length > 0);

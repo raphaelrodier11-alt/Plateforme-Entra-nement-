@@ -42,11 +42,12 @@ import {
   pourcent,
 } from '../composants/ui';
 import { useDonnees } from '../etat/donnees';
+import { CoursChapitre } from '../composants/CoursDetaille';
 import { RenduFiche } from '../fiches/RenduFiche';
 import { lancerQcmChapitre } from '../lib/actions';
 import { choisirQuestions, demarrerSession } from '../lib/sessions';
 
-type Onglet = 'fiche' | 'carte' | 'aides' | 'annales' | 'actualisations';
+type Onglet = 'fiche' | 'complet' | 'ultra' | 'carte' | 'aides' | 'annales' | 'actualisations';
 
 const BLOCS_AIDES: BlocFiche['type'][] = ['mnemo', 'schema', 'etapes', 'arbre', 'scene3d'];
 
@@ -278,7 +279,9 @@ export function PageChapitre() {
           valeur={onglet}
           onChange={setOnglet}
           options={[
-            { valeur: 'fiche', libelle: 'Fiche' },
+            { valeur: 'fiche', libelle: 'Fiche synthèse' },
+            { valeur: 'complet', libelle: 'Cours complet' },
+            { valeur: 'ultra', libelle: 'Cours ultra complet' },
             { valeur: 'carte', libelle: 'Carte mentale' },
             { valeur: 'aides', libelle: 'Aides', compte: nbAides },
             { valeur: 'annales', libelle: 'Annales', compte: annales.length },
@@ -309,6 +312,9 @@ export function PageChapitre() {
             <Complements chapitre={chapitre} />
           </>
         ))}
+
+      {onglet === 'complet' && <CoursChapitre chapitre={chapitre} niveau="complet" />}
+      {onglet === 'ultra' && <CoursChapitre chapitre={chapitre} niveau="ultra" />}
 
       {onglet === 'carte' &&
         (fiche ? (
