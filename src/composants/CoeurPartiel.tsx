@@ -39,7 +39,7 @@ export function CoeurPartiel() {
   const urgent = etat.urgence > 0.6;
 
   const ajouter = async () => {
-    const m = d.matiereParId.get(matiereId);
+    if (!date || !matiereId) return;
     const examen: Examen = {
       id: `exam-${crypto.randomUUID()}`,
       matiereId,
