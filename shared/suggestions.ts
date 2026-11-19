@@ -5,6 +5,7 @@
  * jour des cours, partiels proches…) : aucune requête d'IA, donc aucun coût
  * ni quota. L'IA n'intervient qu'au moment où tu acceptes de créer le document.
  */
+import { matieresExamen } from './examens';
 import { joursEntre } from './dates';
 import type { StatsChapitre } from './progression';
 import type {
@@ -66,9 +67,9 @@ export function suggerer(e: EntreeSuggestions): Suggestion[] {
 
   // Partiel proche : une synthèse de la matière (seulement pour le plus proche de chaque matière).
   const dejaExamen = new Set<string>();
-  for (const ex of [...e.examens].sort((a, b) => a.date.localeCompare(b.date))) {
+  for (const [ex, idMatiere] of [...e.examens].sort((a, b) => a.date.localeCompare(b.date)).flatMap((x) => matieresExamen(x).map((id) => [x, id] as const))) {
     const jours = joursEntre(e.aujourdHui, ex.date);
-    const m = ex.matiereId ? matiere.get(ex.matiereId) : undefined;
+    const m = matiere.get(idMatiere);
     if (!m || jours < 0 || jours > JOURS_EXAMEN || dejaExamen.has(m.id)) continue;
     dejaExamen.add(m.id);
     ajouter(

@@ -483,3 +483,72 @@ describe('emploi du temps adaptatif et révision pure', () => {
     expect(planning.seances[0]!.taches.some((t) => t.type === 'decouverte')).toBe(true);
   });
 });
+
+describe('priorités, objectifs de révisions, partiels multi-matières et horaires', () => {
+  const jours = (n: number, minutes = 90) =>
+    Array.from({ length: n }, (_, j) => {
+      const d = new Date(2026, 10, 16 + j);
+      const id = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return { id, creneaux: { soir: minutes } };
+    });
+
+  it('un partiel peut porter sur plusieurs matières : elles reçoivent toutes du temps, pas les autres', () => {
+    const planning = calculerPlanning(
+      entree({
+        disponibilites: jours(10),
+        chapitres: [chapitre('c1', 'cardio', 0.2), chapitre('n1', 'nephro', 0.2), chapitre('p1', 'pneumo', 0.2)],
+        examens: [{ id: 'x', titre: 'Partiel final', matiereIds: ['cardio', 'nephro'], date: '2026-11-27', source: 'manuel' }],
+      }),
+    );
+    expect(planning.minutesParMatiere.cardio).toBeGreaterThan(0);
+    expect(planning.minutesParMatiere.nephro).toBeGreaterThan(0);
+    expect(planning.minutesParMatiere.pneumo ?? 0).toBeLessThan(planning.minutesParMatiere.cardio!);
+  });
+
+  it('une matière en priorité sur une période reçoit plus de temps sur cette période', () => {
+    const base = {
+      disponibilites: jours(6),
+      chapitres: [chapitre('c1', 'cardio', 0.3), chapitre('n1', 'nephro', 0.3)],
+    };
+    const sans = calculerPlanning(entree(base));
+    const avec = calculerPlanning(entree({ ...base, priorites: [{ id: 'p', matiereId: 'nephro', debut: '2026-11-16', fin: '2026-11-18' }] }));
+    const dansLaPeriode = (p: typeof avec) =>
+      p.seances
+        .filter((s) => s.date <= '2026-11-18')
+        .flatMap((s) => s.taches)
+        .filter((t) => t.matiereId === 'nephro')
+        .reduce((a, t) => a + t.dureeMin, 0);
+    expect(dansLaPeriode(avec)).toBeGreaterThan(dansLaPeriode(sans));
+  });
+
+  it('avec plusieurs révisions voulues, le programme est avancé tôt puis révisé', () => {
+    const planning = calculerPlanning(
+      entree({
+        disponibilites: jours(14, 120),
+        chapitres: [chapitre('a', 'cardio', 0), chapitre('b', 'cardio', 0), chapitre('c', 'cardio', 0)].map((c) => ({ ...c, couverture: 0 })),
+        examens: [{ id: 'x', titre: 'Partiel', matiereIds: ['cardio'], date: '2026-11-30', source: 'manuel' }],
+        objectifsRevisions: { cardio: 3 },
+      }),
+    );
+    const taches = planning.seances.flatMap((s) => s.taches.map((t) => ({ ...t, date: s.date })));
+    const decouvertes = taches.filter((t) => t.type === 'decouverte');
+    const dernierJourDecouverte = decouvertes.map((t) => t.date).sort().at(-1)!;
+    // Une découverte n'a lieu que dans la première moitié environ du temps disponible.
+    expect(dernierJourDecouverte <= '2026-11-23').toBe(true);
+    expect(taches.some((t) => /révision [23]\/3/.test(t.raison))).toBe(true);
+    expect(taches.some((t) => /programme à finir avant/.test(t.raison))).toBe(true);
+  });
+
+  it('ne planifie rien pendant les horaires du partiel', () => {
+    const planning = calculerPlanning(
+      entree({
+        disponibilites: [{ id: '2026-11-18', creneaux: { matin: 240 } }],
+        examens: [{ id: 'x', titre: 'CC', matiereIds: ['cardio'], date: '2026-11-18', heure: '08:00', heureFin: '10:00', source: 'manuel' }],
+        chapitres: [chapitre('c1', 'cardio', 0.2)],
+      }),
+    );
+    for (const s of planning.seances) {
+      expect(s.debutMin >= 10 * 60 || s.debutMin + s.dureeMin <= 8 * 60).toBe(true);
+    }
+  });
+});

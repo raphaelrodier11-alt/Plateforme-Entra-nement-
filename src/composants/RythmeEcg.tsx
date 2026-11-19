@@ -1,4 +1,5 @@
 /** Règle la vitesse de l'ECG de fond sur ton avance ou ton retard (rien n'est affiché). */
+import { matieresExamen } from '../../shared/examens';
 import { useEffect, useMemo } from 'react';
 import { ajouterJours, cleJour, joursEntre } from '../../shared/dates';
 import { situationRetard, type SituationRetard } from '../../shared/retard';
@@ -21,7 +22,7 @@ export function useSituationRetard(): SituationRetard {
     const prochain = d.examens.filter((e) => e.date >= jour).sort((a, b) => a.date.localeCompare(b.date))[0];
     let maitrise: number | undefined;
     if (prochain) {
-      const valeurs = (prochain.matiereId ? (d.chapitresParMatiere.get(prochain.matiereId) ?? []) : d.chapitres).map((c) => d.maitriseParChapitre.get(c.id) ?? 0);
+      const valeurs = (matieresExamen(prochain).length ? matieresExamen(prochain).flatMap((m) => d.chapitresParMatiere.get(m) ?? []) : d.chapitres).map((c) => d.maitriseParChapitre.get(c.id) ?? 0);
       if (valeurs.length) maitrise = valeurs.reduce((a, b) => a + b, 0) / valeurs.length;
     }
     return situationRetard({

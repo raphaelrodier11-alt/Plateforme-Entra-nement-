@@ -4,15 +4,15 @@
  * les dates d'examen ; les autres partiels sont listés sous le cœur, et on
  * touche l'un d'eux pour que le cœur le suive.
  */
+import { FormulaireExamen } from './FormulaireExamen';
 import { libelleExamen } from '../../shared/examens';
 import { CalendarPlus, HeartPulse, Trash2 } from 'lucide-react';
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { cleJour, jourLisible, joursEntre } from '../../shared/dates';
 import { etatCoeur, libelleUrgence } from '../../shared/coeur';
-import type { Examen } from '../../shared/types';
-import { enregistrer, supprimer } from '../db/sync';
+import { supprimer } from '../db/sync';
 import { useDonnees } from '../etat/donnees';
-import { Bouton, Carte, Puce, STYLE_CHAMP, cx } from './ui';
+import { Bouton, Carte, Puce, cx } from './ui';
 
 const Coeur3D = lazy(() => import('./Coeur3D').then((m) => ({ default: m.Coeur3D })));
 
@@ -21,9 +21,6 @@ export function CoeurPartiel() {
   const aujourdHui = cleJour(d.maintenant);
   const [choisi, setChoisi] = useState<string | undefined>();
   const [ajout, setAjout] = useState(false);
-  const [matiereId, setMatiereId] = useState('');
-  const [date, setDate] = useState('');
-  const [titre, setTitre] = useState('');
 
   const avenir = useMemo(
     () =>
@@ -37,22 +34,6 @@ export function CoeurPartiel() {
   const etat = useMemo(() => etatCoeur(suivi?.jours), [suivi?.jours]);
   const matiere = suivi ? d.matiereParId.get(suivi.x.matiereId ?? '') : undefined;
   const urgent = etat.urgence > 0.6;
-
-  const ajouter = async () => {
-    if (!date) return;
-    const examen: Examen = {
-      id: `exam-${crypto.randomUUID()}`,
-      ...(matiereId ? { matiereId } : {}),
-      titre: titre.trim() || 'Partiel',
-      date,
-      source: 'manuel',
-    };
-    await enregistrer('examens', examen);
-    setChoisi(examen.id);
-    setAjout(false);
-    setDate('');
-    setTitre('');
-  };
 
   return (
     <Carte
@@ -117,27 +98,8 @@ export function CoeurPartiel() {
       )}
 
       {ajout && (
-        <div className="apparait mt-4 space-y-3 rounded-2xl bg-surface-2 p-3.5">
-          <label className="block text-sm">
-            <span className="mb-1 block text-xs text-muet">Matière (facultatif)</span>
-            <select value={matiereId} onChange={(e) => setMatiereId(e.target.value)} className={STYLE_CHAMP}>
-              <option value="">Aucune (partiel général)</option>
-              {d.matieres.map((m) => (
-                <option key={m.id} value={m.id}>{m.nom}</option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-xs text-muet">Jour de l'examen</span>
-            <input type="date" value={date} min={aujourdHui} onChange={(e) => setDate(e.target.value)} className={STYLE_CHAMP} />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-xs text-muet">Nom du partiel</span>
-            <input value={titre} onChange={(e) => setTitre(e.target.value)} maxLength={60} placeholder="Partiel final, CC, rattrapage…" className={STYLE_CHAMP} />
-          </label>
-          <Bouton variante="primaire" icone={CalendarPlus} disabled={!date} onClick={() => void ajouter()}>
-            Enregistrer ce partiel
-          </Bouton>
+        <div className="apparait mt-4 rounded-2xl bg-surface-2 p-3.5">
+          <FormulaireExamen onFini={(examen) => { setChoisi(examen.id); setAjout(false); }} />
         </div>
       )}
     </Carte>

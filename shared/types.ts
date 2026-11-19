@@ -532,8 +532,13 @@ export interface Disponibilite {
 
 export interface Examen {
   id: string;
-  /** Absente pour un partiel général (compte à rebours sans matière). */
+  /** Première matière au programme (compatibilité) ; absente pour un partiel général. */
   matiereId?: string;
+  /** Toutes les matières au programme de ce partiel (elles peuvent différer d'un partiel à l'autre). */
+  matiereIds?: string[];
+  /** Heure de début et de fin, « HH:MM » (facultatives). */
+  heure?: string;
+  heureFin?: string;
   titre: string;
   /** Jour au format AAAA-MM-JJ. */
   date: string;
@@ -564,6 +569,10 @@ export interface Reglages {
   id: 'principal';
   /** Drives ajoutés en plus des trois dossiers principaux. */
   drives?: DriveSupplementaire[];
+  /** Périodes où une matière passe en priorité dans l'emploi du temps. */
+  priorites?: { id: string; matiereId: string; debut: string; fin: string }[];
+  /** Nombre de passages voulus avant le partiel, par matière (1 = juste le programme). */
+  objectifsRevisions?: Record<string, number>;
   /** Périodes de révision pure choisies par l'étudiant. */
   revisionsPures?: { id: string; debut: string; fin: string; matiereId?: string }[];
   /** Tâches du planning cochées (clé `idSeance|rang`), pour la checklist du jour. */

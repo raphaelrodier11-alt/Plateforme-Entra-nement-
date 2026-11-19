@@ -1,4 +1,6 @@
 /** Compte à rebours avant chaque partiel, avec le plan du jour pour cette matière. */
+import { matieresExamen } from '../../shared/examens';
+import { nomMatieresExamen } from '../lib/examens';
 import { libelleExamen } from '../../shared/examens';
 import { CalendarClock, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -36,13 +38,14 @@ export function CompteARebours() {
     >
       <ul className="space-y-3">
         {examens.map(({ x, jours }) => {
-          const matiere = d.matiereParId.get(x.matiereId ?? '');
-          const c = couleurMatiere(x.matiereId ?? 'general');
-          const avancement = d.statsMatiere.get(x.matiereId ?? '')?.avancement ?? 0;
+          const ids = matieresExamen(x);
+          const nomsMatieres = nomMatieresExamen(d, x);
+          const c = couleurMatiere(ids[0] ?? 'general');
+          const avancement = ids.length ? ids.reduce((a, m) => a + (d.statsMatiere.get(m)?.avancement ?? 0), 0) / ids.length : 0;
           const urgent = jours <= 7;
           const taches = seancesDuJour
             .flatMap((s) => s.taches.map((t) => ({ t, s })))
-            .filter(({ t }) => !t.matiereId || t.matiereId === x.matiereId);
+            .filter(({ t }) => !t.matiereId || ids.length === 0 || ids.includes(t.matiereId));
           return (
             <li key={x.id} className="rounded-2xl bg-surface-2 p-3.5" style={{ borderLeft: `3px solid ${c.accent}` }}>
               <div className="flex items-center gap-4">
@@ -56,11 +59,11 @@ export function CompteARebours() {
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{libelleExamen(x.titre, matiere?.nom)}</p>
+                  <p className="truncate text-sm font-semibold">{libelleExamen(x.titre, nomsMatieres)}</p>
                   <p className="text-xs text-muet">{jourLisible(x.date)}</p>
                   <div className="mt-2 flex items-center gap-2">
                     <div className="flex-1">
-                      <Jauge valeur={avancement} libelle={`Préparation ${matiere?.nom ?? ''}`} />
+                      <Jauge valeur={avancement} libelle={`Préparation ${nomsMatieres ?? ''}`} />
                     </div>
                     <span className="chiffres text-xs text-texte-2">{pourcent(avancement)}</span>
                   </div>
@@ -71,7 +74,7 @@ export function CompteARebours() {
                 {taches.length === 0 ? (
                   <p className="text-xs text-muet">
                     Rien de prévu aujourd'hui pour cette matière.{' '}
-                    <Link to={`/examens?matiere=${x.matiereId}`} className="text-accent-clair hover:underline">
+                    <Link to={ids[0] ? `/examens?matiere=${ids[0]}` : '/examens'} className="text-accent-clair hover:underline">
                       Lancer un examen blanc
                     </Link>
                   </p>

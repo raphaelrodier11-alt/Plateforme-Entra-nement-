@@ -9,8 +9,8 @@ import {
   ChevronRight,
   Copy,
   GraduationCap,
+  Pencil,
   Play,
-  Plus,
   RefreshCw,
   Trash2,
   TriangleAlert,
@@ -28,6 +28,8 @@ import {
   lundiDe,
 } from '../../shared/dates';
 import { libelleExamen } from '../../shared/examens';
+import { FormulaireExamen } from '../composants/FormulaireExamen';
+import { nomMatieresExamen } from '../lib/examens';
 import type { AlertePlanning, Seance } from '../../shared/planning';
 import {
   CRENEAUX,
@@ -47,6 +49,7 @@ import {
 import { enregistrer, enregistrerPlusieurs, supprimer, synchroniser } from '../db/sync';
 import { useDonnees } from '../etat/donnees';
 import { PeriodesRevision } from '../composants/RevisionPure';
+import { ObjectifsRevisions, PrioritesMatieres } from '../composants/ReglagesEdt';
 import { BarresClassees } from '../graphiques/Graphiques';
 import { LIBELLE_TACHE, lancerTache } from '../lib/actions';
 import { actualiserCalendrier, derniereLecture, type ResultatCalendrier } from '../lib/calendrier';
@@ -223,33 +226,17 @@ function Disponibilites() {
 function ExamensEtCalendrier() {
   const d = useDonnees();
   const aujourdHui = cleJour(d.maintenant);
-  const [matiereId, setMatiereId] = useState('');
-  const [date, setDate] = useState('');
-  const [nom, setNom] = useState('');
   const [lien, setLien] = useState(d.reglages.icsUrl ?? '');
   const [motsCles, setMotsCles] = useState(d.reglages.motsClesExamen.join(', '));
   const [message, setMessage] = useState<string>();
   const [lecture, setLecture] = useState<number>();
   const [enCours, setEnCours] = useState(false);
   const [choix, setChoix] = useState<Record<string, string>>({});
+  const [modifie, setModifie] = useState<string>();
 
   useEffect(() => {
     void derniereLecture().then(setLecture);
   }, [d.evenements]);
-
-  const ajouter = async () => {
-    if (!date) return;
-    const examen: Examen = {
-      id: nouvelId(),
-      ...(matiereId ? { matiereId } : {}),
-      titre: nom.trim().slice(0, 60) || 'Partiel',
-      date,
-      source: 'manuel',
-    };
-    await enregistrer('examens', examen);
-    setDate('');
-    setNom('');
-  };
 
   const relire = async () => {
     setEnCours(true);
@@ -351,70 +338,53 @@ function ExamensEtCalendrier() {
             {examens.map((x) => {
               const jours = joursEntre(aujourdHui, x.date);
               return (
-                <li key={x.id} className="flex items-center gap-3 py-2.5 text-sm">
-                  <GraduationCap size={18} className="shrink-0 text-accent-clair" aria-hidden />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">
-                      {libelleExamen(x.titre, d.matiereParId.get(x.matiereId ?? '')?.nom)}
+                <li key={x.id} className="py-2.5 text-sm">
+                  <div className="flex items-center gap-3">
+                    <GraduationCap size={18} className="shrink-0 text-accent-clair" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">
+                        {libelleExamen(x.titre, nomMatieresExamen(d, x))}
+                      </span>
+                      <span className="chiffres block text-xs text-muet">
+                        {jourLisible(x.date)}
+                        {x.heure ? ` · ${x.heure}${x.heureFin ? `–${x.heureFin}` : ''}` : ''} ·{' '}
+                        {jours < 0 ? 'passé' : jours === 0 ? "aujourd'hui" : `dans ${jours} j`}
+                        {x.source === 'icloud' && ' · depuis le calendrier'}
+                      </span>
                     </span>
-                    <span className="chiffres block text-xs text-muet">
-                      {jourLisible(x.date)} ·{' '}
-                      {jours < 0 ? 'passé' : jours === 0 ? "aujourd'hui" : `dans ${jours} j`}
-                      {x.source === 'icloud' && ' · depuis le calendrier'}
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => void supprimer('examens', x.id)}
-                    aria-label={`Supprimer l'examen ${x.titre}`}
-                    className="grid size-9 place-items-center rounded-lg text-muet hover:bg-surface-2 hover:text-texte"
-                  >
-                    <Trash2 size={16} aria-hidden />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setModifie(modifie === x.id ? undefined : x.id)}
+                      aria-label={`Modifier l'examen ${x.titre}`}
+                      aria-expanded={modifie === x.id}
+                      className="grid size-9 place-items-center rounded-lg text-muet hover:bg-surface-2 hover:text-texte"
+                    >
+                      <Pencil size={16} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void supprimer('examens', x.id)}
+                      aria-label={`Supprimer l'examen ${x.titre}`}
+                      className="grid size-9 place-items-center rounded-lg text-muet hover:bg-surface-2 hover:text-texte"
+                    >
+                      <Trash2 size={16} aria-hidden />
+                    </button>
+                  </div>
+                  {modifie === x.id && (
+                    <div className="mt-3 rounded-2xl bg-surface-2 p-3.5">
+                      <FormulaireExamen initial={x} onFini={() => setModifie(undefined)} />
+                    </div>
+                  )}
                 </li>
               );
             })}
           </ul>
         )}
 
-        {(
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="min-w-40 flex-1 text-sm">
-              <span className="mb-1 block text-xs text-muet">Nom du partiel</span>
-              <input
-                value={nom}
-                onChange={(e) => setNom(e.target.value)}
-                maxLength={60}
-                placeholder="Partiel final, CC, rattrapage…"
-                className={STYLE_CHAMP}
-              />
-            </label>
-            <label className="min-w-36 flex-1 text-sm">
-              <span className="mb-1 block text-xs text-muet">Matière (facultatif)</span>
-              <select value={matiereId} onChange={(e) => setMatiereId(e.target.value)} className={STYLE_CHAMP}>
-                <option value="">Aucune (partiel général)</option>
-                {d.matieres.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.nom}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block text-xs text-muet">Date</span>
-              <input
-                type="date"
-                value={date}
-                min={aujourdHui}
-                onChange={(e) => setDate(e.target.value)}
-                className={STYLE_CHAMP}
-              />
-            </label>
-            <Bouton icone={Plus} disabled={!date} onClick={() => void ajouter()}>
-              Ajouter
-            </Bouton>
-          </div>
-        )}
+        <div className="rounded-2xl bg-surface-2 p-3.5">
+          <p className="mb-2 text-sm font-medium">Ajouter un partiel</p>
+          <FormulaireExamen />
+        </div>
       </Carte>
 
       <Carte titre="Calendrier iCloud">
@@ -566,6 +536,8 @@ export function PagePlanning() {
       />
       <Disponibilites />
       <ExamensEtCalendrier />
+      <ObjectifsRevisions />
+      <PrioritesMatieres />
       <PeriodesRevision />
 
       {planning.alertes.length > 0 && (

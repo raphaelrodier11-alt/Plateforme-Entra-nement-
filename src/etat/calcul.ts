@@ -221,6 +221,8 @@ export function calculer(brutInitial: Brut, maintenant: number): Donnees {
         notionsDues: (brut.notions ?? []).filter((n) => n.chapitreId === s.chapitreId && notionDue(n, cleJour(maintenant))).length,
       })),
     revisionsPures: reglages.revisionsPures,
+    priorites: reglages.priorites,
+    objectifsRevisions: reglages.objectifsRevisions,
     echeancesErreurs: [...erreurs, ...aRevoir]
       .map((q) => repetitions.get(q.id)?.echeance)
       .filter((e): e is number => e !== undefined),

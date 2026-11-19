@@ -7,6 +7,7 @@
  * - Examen d'entraînement général : toutes les sources, tous les chapitres
  *   de la matière représentés.
  */
+import { ajouterJours, cleJour } from './dates';
 import type { EtatQuestion } from './marqueurs';
 import type { FormatPartiel, Question } from './types';
 
@@ -174,4 +175,51 @@ export function libelleExamen(titre: string | undefined, nomMatiere: string | un
   if (!nom) return nomMatiere ?? 'Partiel';
   if (!nomMatiere || nom.toLowerCase().includes(nomMatiere.toLowerCase())) return nom;
   return `${nom} · ${nomMatiere}`;
+}
+
+/** Matières au programme d'un partiel (vide pour un partiel général). */
+export function matieresExamen(x: { matiereId?: string; matiereIds?: string[] }): string[] {
+  if (x.matiereIds && x.matiereIds.length > 0) return x.matiereIds;
+  return x.matiereId ? [x.matiereId] : [];
+}
+
+const minutesDe = (hhmm: string | undefined): number | undefined => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm ?? '');
+  if (!m) return undefined;
+  const h = Number(m[1]);
+  const mn = Number(m[2]);
+  return h < 24 && mn < 60 ? h * 60 + mn : undefined;
+};
+
+/** Plage horaire d'un partiel en minutes depuis minuit, si l'heure de début est connue. */
+export function plageHoraire(x: { heure?: string; heureFin?: string }): [number, number] | undefined {
+  const debut = minutesDe(x.heure);
+  if (debut === undefined) return undefined;
+  const fin = minutesDe(x.heureFin);
+  return [debut, fin !== undefined && fin > debut ? fin : debut + 120];
+}
+
+export type PhaseExamen = 'avant' | 'jour_j' | 'fini';
+
+/**
+ * Où en est-on par rapport à un partiel ?
+ * - `jour_j` : du début de la journée jusqu'à la fin de l'épreuve ;
+ * - `fini` : après la fin de l'épreuve (sans heure de fin connue : dès le lendemain).
+ */
+export function phaseExamen(x: { date: string; heure?: string; heureFin?: string }, maintenant: number): PhaseExamen {
+  const jour = cleJour(maintenant);
+  if (jour < x.date) return 'avant';
+  if (jour > x.date) return 'fini';
+  const plage = plageHoraire(x);
+  if (!plage) return 'jour_j';
+  const minutes = new Date(maintenant).getHours() * 60 + new Date(maintenant).getMinutes();
+  return minutes >= plage[1] ? 'fini' : 'jour_j';
+}
+
+/** Dernier partiel terminé depuis moins de `jours` jours (pour fêter la fin). */
+export function dernierFini<T extends { date: string; heure?: string; heureFin?: string }>(examens: T[], maintenant: number, jours = 2): T | undefined {
+  const limite = ajouterJours(cleJour(maintenant), -jours);
+  return examens
+    .filter((x) => phaseExamen(x, maintenant) === 'fini' && x.date >= limite)
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
 }

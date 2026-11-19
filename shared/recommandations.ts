@@ -2,6 +2,7 @@
  * Recommandations de révision : quelques conseils concrets, classés par
  * importance, déduits de la progression, des erreurs et des examens à venir.
  */
+import { matieresExamen } from './examens';
 import { cleJour, joursEntre, JOUR_MS } from './dates';
 import type { StatsChapitre } from './progression';
 import type { Examen, Session, Tentative, TypeErreur } from './types';
@@ -78,16 +79,16 @@ export function recommander(e: EntreeRecommandations): Recommandation[] {
   }
 
   // Examens proches : chapitres jamais travaillés et examen blanc à faire.
-  for (const examen of e.examens) {
+  for (const [examen, matiereId] of e.examens.flatMap((x) => matieresExamen(x).map((m) => [x, m] as const))) {
     const jours = joursEntre(aujourdHui, examen.date);
-    if (jours < 0 || jours > 21 || !examen.matiereId) continue;
-    const nom = e.nomsMatieres.get(examen.matiereId) ?? 'la matière';
-    const chapitres = e.stats.filter((s) => s.matiereId === examen.matiereId);
+    if (jours < 0 || jours > 21) continue;
+    const nom = e.nomsMatieres.get(matiereId) ?? 'la matière';
+    const chapitres = e.stats.filter((s) => s.matiereId === matiereId);
     const jamais = chapitres.filter((s) => s.statut === 'a_commencer');
     if (jamais.length > 0) {
       const premier = [...jamais].sort((a, b) => b.poidsExamen - a.poidsExamen)[0]!;
       liste.push({
-        id: `examen_chapitres:${examen.id}`,
+        id: `examen_chapitres:${examen.id}:${matiereId}`,
         priorite: 95 - jours,
         titre: `Examen de ${nom} dans ${jours} jour${jours > 1 ? 's' : ''} : ${jamais.length} chapitre${jamais.length > 1 ? 's' : ''} jamais travaillé${jamais.length > 1 ? 's' : ''}`,
         detail: `Commence par « ${e.titresChapitres.get(premier.chapitreId) ?? 'le plus fréquent'} », le plus tombé aux partiels.`,
@@ -98,16 +99,16 @@ export function recommander(e: EntreeRecommandations): Recommandation[] {
       (s) =>
         s.termine &&
         s.type === 'examen_blanc' &&
-        s.matiereId === examen.matiereId &&
+        s.matiereId === matiereId &&
         e.maintenant - s.debut < 14 * JOUR_MS,
     );
     if (!blancRecent && chapitres.length > 0 && jours <= 14) {
       liste.push({
-        id: `examen_blanc:${examen.id}`,
+        id: `examen_blanc:${examen.id}:${matiereId}`,
         priorite: 80 - jours,
         titre: `Fais un examen blanc de ${nom}`,
         detail: `L'examen est dans ${jours} jour${jours > 1 ? 's' : ''} et tu n'as pas fait d'examen blanc depuis deux semaines.`,
-        action: { type: 'examen_blanc', matiereId: examen.matiereId },
+        action: { type: 'examen_blanc', matiereId },
       });
     }
   }

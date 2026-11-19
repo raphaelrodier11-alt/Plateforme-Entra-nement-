@@ -2,6 +2,8 @@
  * Alerte J-7 / J-3 / J-1 à l'ouverture : le partiel approche, voici quoi
  * réviser en priorité. Se ferme jusqu'au prochain palier.
  */
+import { matieresExamen } from '../../shared/examens';
+import { nomMatieresExamen } from '../lib/examens';
 import { libelleExamen } from '../../shared/examens';
 import { Siren, X } from 'lucide-react';
 import { useState } from 'react';
@@ -34,12 +36,13 @@ export function BandeauPartiel() {
   const alerte = candidats[0];
   if (!alerte) return null;
 
-  const matiere = d.matiereParId.get(alerte.x.matiereId ?? '');
-  const faibles = (alerte.x.matiereId ? (d.chapitresParMatiere.get(alerte.x.matiereId) ?? []) : d.chapitres)
+  const ids = matieresExamen(alerte.x);
+  const nomsMatieres = nomMatieresExamen(d, alerte.x);
+  const faibles = (ids.length ? ids.flatMap((m) => d.chapitresParMatiere.get(m) ?? []) : d.chapitres)
     .map((c) => ({ c, m: d.maitriseParChapitre.get(c.id) ?? 0 }))
     .sort((a, b) => a.m - b.m)
     .slice(0, 3);
-  const dues = d.notions.filter((n) => notionDue(n, jour) && (!alerte.x.matiereId || d.chapitreParId.get(n.chapitreId)?.matiereId === alerte.x.matiereId)).length;
+  const dues = d.notions.filter((n) => notionDue(n, jour) && (ids.length === 0 || ids.includes(d.chapitreParId.get(n.chapitreId)?.matiereId ?? ''))).length;
   const etiquette = alerte.jours === 0 ? 'C’est aujourd’hui' : `J-${alerte.jours}`;
   const conseil =
     alerte.jours <= 1
@@ -62,7 +65,7 @@ export function BandeauPartiel() {
       <Siren size={22} className="mt-0.5 shrink-0 text-alerte" aria-hidden />
       <div className="min-w-0 flex-1 text-sm">
         <p className="font-semibold">
-          {etiquette} · {libelleExamen(alerte.x.titre, matiere?.nom)}
+          {etiquette} · {libelleExamen(alerte.x.titre, nomsMatieres)}
         </p>
         <p className="mt-1 text-texte-2">{conseil}</p>
         {faibles.length > 0 && (

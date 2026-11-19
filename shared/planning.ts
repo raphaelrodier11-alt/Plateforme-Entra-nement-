@@ -23,6 +23,7 @@ import {
   joursEntre,
 } from './dates';
 import { PART_TEMPS, besoinRevision, niveauRevision } from './evaluations';
+import { matieresExamen, plageHoraire } from './examens';
 import { CRENEAUX } from './types';
 import type { Creneau, Disponibilite, Evenement, Examen, Reglages } from './types';
 
@@ -126,7 +127,14 @@ export interface EntreePlanning {
   echeancesErreurs?: number[];
   /** Périodes de révision pure choisies par l'étudiant. */
   revisionsPures?: PeriodeRevision[];
+  /** Périodes où une matière passe en priorité. */
+  priorites?: { id: string; matiereId: string; debut: string; fin: string }[];
+  /** Nombre de passages voulus avant le partiel, par matière. */
+  objectifsRevisions?: Record<string, number>;
 }
+
+/** Poids d'une matière choisie « en priorité » sur sa période. */
+export const POIDS_PRIORITE = 2.5;
 
 /** Période de révision pure qui couvre ce jour, s'il y en a une. */
 export function revisionPureDu(jour: string, periodes: PeriodeRevision[] | undefined): PeriodeRevision | undefined {
@@ -183,7 +191,19 @@ export function placerSeances(e: EntreePlanning): {
   // On ne planifie pas avant « maintenant », arrondi aux 5 minutes suivantes.
   const plancher = Math.ceil(e.maintenant / (5 * MINUTE_MS)) * 5 * MINUTE_MS;
 
-  const evenements = e.evenements
+  // Les horaires des partiels sont des plages occupées : on n'y planifie rien.
+  const horairesExamens: Evenement[] = e.examens.flatMap((x) => {
+    const plage = plageHoraire(x);
+    if (!plage) return [];
+    return [{
+      id: `examen:${x.id}`,
+      titre: x.titre || 'Partiel',
+      debut: instantDuJour(x.date, plage[0] / 60),
+      fin: instantDuJour(x.date, plage[1] / 60),
+      journeeEntiere: false,
+    }];
+  });
+  const evenements = [...e.evenements, ...horairesExamens]
     .filter((ev) => !ev.journeeEntiere && ev.fin > e.maintenant)
     .sort((a, b) => a.debut - b.debut);
   const plagesEvenements: Intervalle[] = evenements.map((ev) => [ev.debut, ev.fin]);
@@ -345,8 +365,7 @@ export function calculerPlanning(e: EntreePlanning): Planning {
   const examensFuturs = e.examens.filter((x) => joursEntre(aujourdHui, x.date) >= 0);
   const examensParMatiere = new Map<string, string[]>();
   for (const x of e.examens) {
-    if (!x.matiereId) continue;
-    examensParMatiere.set(x.matiereId, [...(examensParMatiere.get(x.matiereId) ?? []), x.date]);
+    for (const m of matieresExamen(x)) examensParMatiere.set(m, [...(examensParMatiere.get(m) ?? []), x.date]);
   }
   const desExamensExistent = examensFuturs.length > 0;
 
@@ -356,17 +375,19 @@ export function calculerPlanning(e: EntreePlanning): Planning {
     maxPoids.set(c.matiereId, Math.max(maxPoids.get(c.matiereId) ?? 0, c.poidsExamen));
   }
 
-  // Examen blanc : une séance assez longue, de préférence 2 à 6 jours avant.
-  const examenBlancDe = new Map<string, Examen>();
+  // Examen blanc : une séance assez longue, de préférence 2 à 6 jours avant, pour chaque matière au programme.
+  const examenBlancDe = new Map<string, { examen: Examen; matiereId: string }>();
   for (const x of examensFuturs) {
-    if (!x.matiereId || !matieresAvecChapitres.has(x.matiereId)) continue;
-    const candidates = seances.filter((s) => {
-      const j = joursEntre(s.date, x.date);
-      return j >= 1 && j <= 6 && s.dureeMin >= 45 && !examenBlancDe.has(s.id);
-    });
-    const preferees = candidates.filter((s) => joursEntre(s.date, x.date) >= 2);
-    const choisie = (preferees.length ? preferees : candidates).at(-1);
-    if (choisie) examenBlancDe.set(choisie.id, x);
+    for (const matiereId of matieresExamen(x)) {
+      if (!matieresAvecChapitres.has(matiereId)) continue;
+      const candidates = seances.filter((s) => {
+        const j = joursEntre(s.date, x.date);
+        return j >= 1 && j <= 6 && s.dureeMin >= 45 && !examenBlancDe.has(s.id);
+      });
+      const preferees = candidates.filter((s) => joursEntre(s.date, x.date) >= 2);
+      const choisie = (preferees.length ? preferees : candidates).at(-1);
+      if (choisie) examenBlancDe.set(choisie.id, { examen: x, matiereId });
+    }
   }
 
   for (const x of examensFuturs) {
@@ -374,6 +395,16 @@ export function calculerPlanning(e: EntreePlanning): Planning {
     if (!avant) alertes.push({ type: 'sans_seance_avant_examen', examenId: x.id });
   }
 
+  // Objectif de passages par matière : le programme doit être fini assez tôt pour laisser place aux révisions.
+  const objectif = (m: string) => Math.max(1, Math.min(6, Math.round(e.objectifsRevisions?.[m] ?? 1)));
+  const limites = new Map<string, { limite: string; examen: string; passages: number }>();
+  for (const m of examensParMatiere.keys()) {
+    const n = objectif(m);
+    const dates = (examensParMatiere.get(m) ?? []).filter((d) => joursEntre(aujourdHui, d) >= 0).sort();
+    if (n < 2 || dates.length === 0) continue;
+    const jours = joursEntre(aujourdHui, dates[0]!);
+    limites.set(m, { limite: ajouterJours(aujourdHui, Math.floor(jours * (1 - (0.65 * (n - 1)) / n))), examen: dates[0]!, passages: n });
+  }
   const simule = new Map(e.chapitres.map((c) => [c.id, c.maitrise ?? c.avancement]));
   // Niveau de départ de chaque chapitre (faible, moyen, fort) : il ne change pas pendant la simulation.
   const niveauDepart = new Map(e.chapitres.map((c) => [c.id, niveauRevision(besoinRevision(c.maitrise ?? c.avancement, c.difficulte ?? 3))]));
@@ -407,17 +438,18 @@ export function calculerPlanning(e: EntreePlanning): Planning {
       }
     }
 
-    const examen = examenBlancDe.get(seance.id);
-    if (examen && reste >= 30) {
+    const blanc = examenBlancDe.get(seance.id);
+    const examen = blanc?.examen;
+    if (blanc && examen && reste >= 30) {
       const duree = Math.min(reste, DUREE_EXAMEN_BLANC_MIN);
       const j = joursEntre(seance.date, examen.date);
       taches.push({
         type: 'examen_blanc',
-        matiereId: examen.matiereId!,
+        matiereId: blanc.matiereId,
         dureeMin: duree,
         raison: `Examen dans ${j} jour${j > 1 ? 's' : ''} : entraînement en conditions réelles`,
       });
-      minutesParMatiere[examen.matiereId!] = (minutesParMatiere[examen.matiereId!] ?? 0) + duree;
+      minutesParMatiere[blanc.matiereId] = (minutesParMatiere[blanc.matiereId] ?? 0) + duree;
       reste -= duree;
     }
 
@@ -438,13 +470,23 @@ export function calculerPlanning(e: EntreePlanning): Planning {
         // les moyens ensuite (≈ 25 %), un peu d'entretien des points forts (≈ 15 %).
         const besoin = Math.max(BESOIN_PLANCHER, besoinRevision(simule.get(c.id) ?? 0, c.difficulte ?? 3));
         const frequence = c.poidsExamen / (maxPoids.get(c.matiereId) || 1);
-        const equilibre = 1 / (1 + (minutesParMatiere[c.matiereId] ?? 0) / 60);
+        const enPriorite = (e.priorites ?? []).some((p) => p.matiereId === c.matiereId && p.debut <= seance.date && seance.date <= p.fin);
+        // L'équilibre entre matières ne freine pas une matière choisie en priorité.
+        const equilibre = enPriorite ? 1 : 1 / (1 + (minutesParMatiere[c.matiereId] ?? 0) / 60);
         // Régulation : on vise 60 % / 25 % / 15 % du temps selon le niveau de départ du chapitre.
         const niveau = niveauDepart.get(c.id) ?? 'moyen';
         const totalMin = minutesParNiveau.faible + minutesParNiveau.moyen + minutesParNiveau.fort;
         const partReelle = totalMin > 0 ? minutesParNiveau[niveau] / totalMin : PART_TEMPS[niveau];
         const regulation = Math.min(4, Math.max(0.25, PART_TEMPS[niveau] / Math.max(0.05, partReelle)));
         let score = besoin * regulation * (0.6 + 0.4 * frequence) * u * equilibre;
+        // Matière choisie en priorité sur cette période.
+        if (enPriorite) score *= POIDS_PRIORITE;
+        // Programme à finir tôt : avant la date limite on avance le cours, ensuite on révise.
+        const objectifMatiere = limites.get(c.matiereId);
+        if (objectifMatiere && !periodePure) {
+          const peuSu = (simule.get(c.id) ?? 0) < 0.6;
+          score *= seance.date <= objectifMatiere.limite ? (peuSu ? 1.8 : 0.8) : peuSu ? 1.2 : 1.6;
+        }
         // Pas plus d'une heure d'affilée sur le même chapitre.
         if ((minutesChapitre.get(c.id) ?? 0) >= 2 * BLOC_MIN) score *= 0.25;
         if (score > meilleurScore) {
@@ -475,6 +517,16 @@ export function calculerPlanning(e: EntreePlanning): Planning {
         motifs.push(jours === 0 ? "Jour de l'examen" : "Veille d'examen");
       } else {
         motifs.push(jamaisVu ? 'Jamais travaillé' : `Su à ${Math.round(avancement * 100)} %`);
+        const objectifMatiere = limites.get(c.matiereId);
+        if (objectifMatiere) {
+          if (seance.date <= objectifMatiere.limite) motifs.push(`programme à finir avant le ${objectifMatiere.limite.slice(8)}/${objectifMatiere.limite.slice(5, 7)}`);
+          else {
+            const total = Math.max(1, joursEntre(objectifMatiere.limite, objectifMatiere.examen));
+            const k = Math.min(objectifMatiere.passages, 2 + Math.floor((joursEntre(objectifMatiere.limite, seance.date) / total) * (objectifMatiere.passages - 1)));
+            motifs.push(`révision ${k}/${objectifMatiere.passages}`);
+          }
+        }
+        if ((e.priorites ?? []).some((p) => p.matiereId === c.matiereId && p.debut <= seance.date && seance.date <= p.fin)) motifs.push('priorité choisie');
         if (frequent) motifs.push('tombe souvent aux partiels');
         if (jours !== undefined) motifs.push(`examen dans ${jours} j`);
       }
