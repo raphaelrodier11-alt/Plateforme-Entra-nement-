@@ -4,6 +4,7 @@
  *  2. les matières de ce semestre, sous forme de cartes ;
  *  3. les chapitres d'une matière (page dédiée), avec statut, avancement et badges.
  */
+import { FusionsMatieres } from '../composants/FusionsMatieres';
 import { ArrowLeft, BookOpen, FilePen, FolderOpen, RefreshCw, Search, Sparkles, Star } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -108,6 +109,8 @@ export function Cours() {
         sousTitre={`${libelle(choix)} · ${visibles.length} matière${visibles.length > 1 ? 's' : ''} · ${nbChapitres} chapitres`}
         action={<LienBouton to="/avancement" variante="discret" className="min-h-9 px-3">Mon avancement</LienBouton>}
       />
+
+      <FusionsMatieres />
 
       {selections.length > 1 && (
         <div className="mb-4">

@@ -326,6 +326,10 @@ Limites : les schémas « vectoriels » d'un PDF (non importés comme images) ne
 
 Page Fichiers → « Ajouter une matière » : un nom et un semestre, sans lien de Drive. La matière existe tout de suite (choix des matières d'un partiel, priorités, révisions voulues). Envoie ensuite ses cours et ses annales en la choisissant dans « Matière de ces fichiers » : les fichiers sont rangés dans « SEMESTRE n / Matière / … » comme dans un Drive, et l'import en tire chapitres, fiches, QCM et cours détaillés. Le planning les intègre dès que les chapitres existent.
 
+## Matières en double
+
+Si « Infectio » et « Infectiologie » existent séparément, la page Cours te le signale : l'app compare les noms (un nom qui commence l'autre) et le contenu (vocabulaire commun des chapitres), puis propose de fusionner sous le nom le plus complet. Tu peux aussi fusionner à la main deux matières quelconques. La fusion regroupe chapitres, questions, fiches, partiels, résultats, priorités et révisions voulues ; elle se défait à tout moment, et les prochains fichiers importés atterrissent directement dans la matière gardée. Deux chapitres identiques dans les deux matières restent à part (même titre, deux copies).
+
 ## Coûts
 
 **Tout est gratuit par défaut** : Cloudflare (Worker et base D1), GitHub Actions (dépôt

@@ -5,6 +5,7 @@
  * Rien de ceci n'est stocké : c'est recalculé dès qu'une donnée change, ce
  * qui garantit des écrans cohérents entre eux et entre les appareils.
  */
+import { appliquerFusions, canonique } from '../../shared/fusions';
 import { calculerProfil, type Profil } from '../../shared/gamification';
 import { estIncontournable, etatsQuestions, type EtatQuestion } from '../../shared/marqueurs';
 import { calculerPlanning, type Planning } from '../../shared/planning';
@@ -151,11 +152,16 @@ function grouper<T>(elements: T[], cle: (e: T) => string): Map<string, T[]> {
 
 export function calculer(brutInitial: Brut, maintenant: number): Donnees {
   // Les questions des entraînements sur mesure rejoignent les autres, marquées « perso » (hors avancement).
-  const brut: Brut = { ...brutInitial, questions: [...brutInitial.questions, ...(brutInitial.questionsPerso ?? [])] };
+  const fusions = brutInitial.reglages[0]?.fusionsMatieres;
+  const brut: Brut = appliquerFusions(
+    { ...brutInitial, questions: [...brutInitial.questions, ...(brutInitial.questionsPerso ?? [])] },
+    fusions,
+  );
+  const canon = canonique(fusions);
   // Matières ajoutées à la main : visibles tout de suite, fusionnées avec celles de l'import (même identifiant).
   const existantes = new Set(brut.matieres.map((m) => m.id));
   const manuelles = (brut.reglages[0]?.matieresManuelles ?? [])
-    .filter((m) => !existantes.has(m.id))
+    .filter((m) => !existantes.has(m.id) && canon(m.id) === m.id)
     .map((m): Matiere => ({ id: m.id, nom: m.nom, ordre: 1000, semestre: m.semestre }));
   const matieres = [...brut.matieres, ...manuelles].sort((a, b) => a.ordre - b.ordre || a.nom.localeCompare(b.nom));
   const chapitres = [...brut.chapitres].sort((a, b) => a.ordre - b.ordre || a.titre.localeCompare(b.titre));

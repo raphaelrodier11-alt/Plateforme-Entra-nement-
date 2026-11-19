@@ -6,12 +6,14 @@
  * Les deux premières étapes et l'estimation ne coûtent rien : aucune
  * dépense d'IA n'a lieu avant que l'estimation soit approuvée dans l'app.
  */
+import { canonique } from '../shared/fusions';
 import type {
   Chapitre,
   Estimation,
   Fichier,
   LigneEstimation,
   Matiere,
+  Reglages,
   Partiel,
   PassageIllisible,
   RoleFichier,
@@ -562,10 +564,12 @@ export async function structurer(c: Contexte): Promise<void> {
   // Matière imposée par le dossier du Drive (« SEMESTRE n / MATIÈRE / … ») : créée
   // d'avance, et l'IA ne peut plus la changer.
   const imposees = new Map<string, string>();
+  const canonMatiere = canonique(c.memoire.lire<Reglages>('reglages', 'principal')?.fusionsMatieres);
   for (const f of aClasser) {
     const dossier = matiereDepuisChemin(f.chemin, estFichierDepot(f.id));
     if (!dossier) continue;
-    const id = `m-${slug(dossier.nom)}`;
+    // Une matière fusionnée par l'étudiant reçoit ses nouveaux fichiers sous son nom définitif.
+    const id = canonMatiere(`m-${slug(dossier.nom)}`);
     const existante = c.memoire.lire<Matiere>('matieres', id);
     if (!existante) {
       const ordre = Math.max(0, ...c.memoire.liste<Matiere>('matieres').map((m) => m.ordre)) + 1;
@@ -607,7 +611,7 @@ export async function structurer(c: Contexte): Promise<void> {
     for (const m of (lotImpose ? [] : Array.isArray(reponse.matieres) ? reponse.matieres : []).map(objet)) {
       const nom = chaine(m.nom);
       if (!chaine(m.ref) || !nom) continue;
-      const id = `m-${slug(nom)}`;
+      const id = canonMatiere(`m-${slug(nom)}`);
       if (!c.memoire.lire('matieres', id)) {
         await c.memoire.ecrire<Matiere>('matieres', { id, nom, ordre: ++ordre });
       }

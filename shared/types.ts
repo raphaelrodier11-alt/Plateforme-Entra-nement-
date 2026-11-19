@@ -569,6 +569,10 @@ export interface Reglages {
   id: 'principal';
   /** Drives ajoutés en plus des trois dossiers principaux. */
   drives?: DriveSupplementaire[];
+  /** Matières en double fusionnées : `de` devient `vers` partout. */
+  fusionsMatieres?: { de: string; vers: string; nom?: string }[];
+  /** Paires de matières que l'étudiant a décidé de garder séparées (« idA|idB »). */
+  fusionsIgnorees?: string[];
   /** Matières ajoutées à la main (avant tout fichier) ; elles rejoignent celles de l'import dès le premier envoi. */
   matieresManuelles?: { id: string; nom: string; semestre: number }[];
   /** Périodes où une matière passe en priorité dans l'emploi du temps. */
