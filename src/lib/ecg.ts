@@ -36,6 +36,24 @@ export function ecg(phase: number): number {
   );
 }
 
+let debutArret: number | undefined;
+
+/** Jour du partiel : le tracé part en fibrillation quelques secondes, puis ligne plate. */
+export function definirArret(actif: boolean): void {
+  if (actif && debutArret === undefined) debutArret = Date.now();
+  if (!actif) debutArret = undefined;
+}
+export const enArret = (): boolean => debutArret !== undefined;
+
+/** Valeur du tracé à un instant (normale, fibrillation ou asystolie). */
+export function valeur(instantMs: number): number {
+  if (debutArret === undefined || instantMs < debutArret) return ecg(phaseA(instantMs));
+  const s = (instantMs - debutArret) / 1000;
+  const fibrillation = Math.max(0, 1 - s / 6);
+  const bruit = Math.sin(instantMs * 0.031) + 0.6 * Math.sin(instantMs * 0.073 + 1.3) + 0.4 * Math.sin(instantMs * 0.017);
+  return fibrillation * 0.45 * bruit + 0.004 * Math.sin(instantMs * 0.004);
+}
+
 export const phaseA = (instantMs: number): number => ((((instantMs - origine) % PERIODE_MS) + PERIODE_MS) % PERIODE_MS) / PERIODE_MS;
 
 export interface Abonne {
@@ -60,7 +78,7 @@ function image(maintenant: number): void {
   const dt = dernier ? Math.min(maintenant - dernier, 100) : 16;
   dernier = maintenant;
   const phase = phaseA(Date.now());
-  if (dernierePhase < PHASE_PIC && phase >= PHASE_PIC) battement();
+  if (debutArret === undefined && dernierePhase < PHASE_PIC && phase >= PHASE_PIC) battement();
   dernierePhase = phase;
   // Une erreur de dessin ne doit jamais arrêter la boucle ni les battements.
   for (const a of abonnes) {

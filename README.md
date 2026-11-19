@@ -314,6 +314,14 @@ Illustrations (galerie qu'on fait défiler, image par image, avec agrandissement
 
 Limites : les schémas « vectoriels » d'un PDF (non importés comme images) ne sont pas extraits ; les images d'internet ne s'affichent pas hors ligne ; les images stockées pèsent dans la base gratuite (≈ 0,5 Mo par chapitre au plus).
 
+## Partiels, emploi du temps et jour J
+
+- **Partiel** : nom libre (« Partiel final », « CC »…), jour, horaires facultatifs et **matières au programme** (plusieurs possibles, elles peuvent différer d'un partiel à l'autre ; aucune = partiel général). Modifiable depuis la page Planning. Les horaires sont des plages bloquées : aucune séance n'y est planifiée.
+- **Priorités** : une matière peut passer en priorité entre deux dates (page Planning).
+- **Révisions voulues** : pour chaque matière, le nombre de passages avant le partiel. L'emploi du temps finit le programme assez tôt (2 passages : aux deux tiers du temps, 3 : à mi-parcours environ), puis alterne les révisions.
+- **Jour J** : le cœur s'arrête (quelques secondes de fibrillation puis il se fige, le muscle pâlit) et l'ECG de fond fait de même : fibrillation puis ligne plate.
+- **Partiel fini** : mode « bravo » pendant deux jours (accent vert, confettis une fois, message de félicitations, cœur et ECG apaisés). Le planning reprend avec le partiel suivant.
+
 ## Coûts
 
 **Tout est gratuit par défaut** : Cloudflare (Worker et base D1), GitHub Actions (dépôt

@@ -42,6 +42,12 @@
 }
 
 /* Thème clair : « papier » chaud, cartes blanches, encre douce. */
+:root[data-fete] {
+  --color-accent: #1fbf8a;
+  --color-accent-clair: #5fe0b4;
+  --color-accent-fond: rgb(31 191 138 / 0.16);
+}
+
 :root[data-theme='light'] {
   --color-fond: #f6f5f2;
   --color-surface: #ffffff;
@@ -213,4 +219,10 @@ html.bat .pouls-logo {
   .pouls {
     background: none !important;
   }
+}
+
+:root[data-theme='light'][data-fete] {
+  --color-accent: #0e8f66;
+  --color-accent-clair: #0a7a57;
+  --color-accent-fond: rgb(14 143 102 / 0.12);
 }

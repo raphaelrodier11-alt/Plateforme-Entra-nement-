@@ -15,6 +15,10 @@ export interface EtatCoeur {
   vitesseSang: number;
   /** Éclat de la lueur rouge, de 0 à 1. */
   eclat: number;
+  /** Arrêt cardiaque : le jour du partiel, le cœur ne bat plus. */
+  arret?: boolean;
+  /** Cœur apaisé : le partiel est fini. */
+  apaise?: boolean;
 }
 
 /** À partir de combien de jours le cœur commence à s'agiter. */
@@ -44,6 +48,16 @@ export function battement(phase: number): number {
   const p = ((phase % 1) + 1) % 1;
   const bosse = (c: number, l: number) => Math.exp(-(((p - c) / l) ** 2));
   return Math.min(1, bosse(0.1, 0.055) + 0.55 * bosse(0.33, 0.07));
+}
+
+/** Le jour du partiel : plus un battement, plus de sang qui circule. */
+export function etatCoeurArret(): EtatCoeur {
+  return { urgence: 1, bpm: 0, echelle: 0.92, amplitude: 0, vitesseSang: 0, eclat: 0, arret: true };
+}
+
+/** Le partiel est fini : un cœur calme, un rythme lent et régulier. */
+export function etatCoeurApaise(): EtatCoeur {
+  return { urgence: 0, bpm: 58, echelle: 1, amplitude: 0.06, vitesseSang: 0.7, eclat: 0.3, apaise: true };
 }
 
 export function libelleUrgence(joursRestants: number | undefined): string {

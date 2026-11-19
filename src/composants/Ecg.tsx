@@ -5,7 +5,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { animationsActives } from '../lib/animations';
-import { PERIODE_MS, PHASE_PIC, abonner, ecg, phaseA } from '../lib/ecg';
+import { PERIODE_MS, PHASE_PIC, abonner, enArret, phaseA, valeur } from '../lib/ecg';
 
 interface Options {
   /** Vitesse de défilement, en pixels CSS par seconde. */
@@ -53,7 +53,7 @@ function lancer(canvas: HTMLCanvasElement, o: Options): () => void {
     // Remplit tout l'historique visible pour ne jamais démarrer sur une ligne vide.
     const maintenant = Date.now();
     for (let i = 0; i < tampon.length; i++) {
-      tampon[i] = ecg(phaseA(maintenant - ((tampon.length - i) / o.vitesse) * 1000));
+      tampon[i] = valeur(maintenant - ((tampon.length - i) / o.vitesse) * 1000);
     }
     tete = tampon.length - 2;
     pics = [];
@@ -135,8 +135,8 @@ function lancer(canvas: HTMLCanvasElement, o: Options): () => void {
         const t = maintenant - ((cible - x) / o.vitesse) * 1000;
         const phase = phaseA(t);
         const i = x % tampon.length;
-        tampon[i] = ecg(phase);
-        if (precedentePhase < PHASE_PIC && phase >= PHASE_PIC) pics.push({ x: i, y: yDe(1) });
+        tampon[i] = valeur(t);
+        if (!enArret() && precedentePhase < PHASE_PIC && phase >= PHASE_PIC) pics.push({ x: i, y: yDe(1) });
         precedentePhase = phase;
       }
       tete = cible >= tampon.length - 1 ? 0 : cible;

@@ -2,7 +2,7 @@
  * Alerte J-7 / J-3 / J-1 à l'ouverture : le partiel approche, voici quoi
  * réviser en priorité. Se ferme jusqu'au prochain palier.
  */
-import { matieresExamen } from '../../shared/examens';
+import { matieresExamen, phaseExamen } from '../../shared/examens';
 import { nomMatieresExamen } from '../lib/examens';
 import { libelleExamen } from '../../shared/examens';
 import { Siren, X } from 'lucide-react';
@@ -29,7 +29,7 @@ export function BandeauPartiel() {
   const jour = cleJour(d.maintenant);
   const candidats = d.examens
     .map((x) => ({ x, jours: joursEntre(jour, x.date) }))
-    .filter(({ jours }) => jours >= 0 && jours <= 7)
+    .filter(({ x, jours }) => jours >= 0 && jours <= 7 && phaseExamen(x, d.maintenant) !== 'fini')
     .map((e) => ({ ...e, palier: PALIERS.find((p) => e.jours <= p) ?? 7 }))
     .filter((e) => !vu(`${e.x.id}|${e.palier}`))
     .sort((a, b) => a.jours - b.jours);
@@ -45,7 +45,9 @@ export function BandeauPartiel() {
   const dues = d.notions.filter((n) => notionDue(n, jour) && (ids.length === 0 || ids.includes(d.chapitreParId.get(n.chapitreId)?.matiereId ?? ''))).length;
   const etiquette = alerte.jours === 0 ? 'C’est aujourd’hui' : `J-${alerte.jours}`;
   const conseil =
-    alerte.jours <= 1
+    alerte.jours === 0
+      ? 'C’est aujourd’hui : respire, tu as tout donné. Bonne chance !'
+      : alerte.jours <= 1
       ? 'Veille de partiel : relis tes fiches et ton carnet, pas de nouvelle notion. Dors bien.'
       : alerte.jours <= 3
         ? 'Dernière ligne droite : annales chronométrées et points faibles.'

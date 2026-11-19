@@ -4,7 +4,8 @@ import { useEffect, useMemo } from 'react';
 import { ajouterJours, cleJour, joursEntre } from '../../shared/dates';
 import { situationRetard, type SituationRetard } from '../../shared/retard';
 import { useDonnees } from '../etat/donnees';
-import { definirBpm } from '../lib/ecg';
+import { useSituationPartiel } from '../etat/partiel';
+import { definirArret, definirBpm } from '../lib/ecg';
 
 export function useSituationRetard(): SituationRetard {
   const d = useDonnees();
@@ -36,6 +37,11 @@ export function useSituationRetard(): SituationRetard {
 
 export function RythmeEcg() {
   const { bpm } = useSituationRetard();
-  useEffect(() => definirBpm(bpm), [bpm]);
+  const { arret, fini } = useSituationPartiel();
+  // Jour du partiel : arrêt cardiaque. Partiel fini : rythme calme. Sinon : selon l'avance ou le retard.
+  useEffect(() => {
+    definirArret(!!arret);
+    definirBpm(arret ? 60 : fini ? 58 : bpm);
+  }, [bpm, arret, fini]);
   return null;
 }

@@ -263,11 +263,20 @@ function creerMoteur(conteneur: HTMLDivElement, initial: EtatCoeur): Moteur {
   let image = 0;
   let depart = performance.now();
   let progres = 0;
+  let debutArret: number | undefined;
   const dessiner = (statique: boolean) => {
     const t = (performance.now() - depart) / 1000;
+    if (etat.arret && debutArret === undefined) debutArret = t;
+    if (!etat.arret) debutArret = undefined;
     const phase = statique ? 0.1 : (t * etat.bpm) / 60;
-    const bat = battement(phase);
-    const echelle = etat.echelle * (1 + etat.amplitude * bat);
+    const bat = etat.arret ? 0 : battement(phase);
+    // Arrêt : quelques secondes de fibrillation (frémissement), puis le cœur est figé.
+    const tremblement = etat.arret && !statique ? Math.max(0, 1 - (t - (debutArret ?? t)) / 6) * 0.02 * Math.sin(t * 45) : 0;
+    const echelle = etat.echelle * (1 + etat.amplitude * bat + tremblement);
+    // Le muscle pâlit à l'arrêt (cyanose), rosit doucement quand le cœur est apaisé.
+    if (etat.arret) chair.color.setRGB(0.42, 0.44, 0.7);
+    else if (etat.apaise) chair.color.setRGB(1.08, 1, 0.98);
+    else chair.color.setRGB(1, 1, 1);
     groupe.scale.setScalar(echelle);
     // Les muscles s'illuminent au battement ; la lueur rouge éclaire les alentours.
     chair.emissiveIntensity = 0.04 + etat.eclat * 0.5 * bat;
@@ -281,7 +290,7 @@ function creerMoteur(conteneur: HTMLDivElement, initial: EtatCoeur): Moteur {
       g.maillage.position.copy(g.vaisseau.courbe.getPoint(g.vaisseau.sortant ? d : 1 - d));
       g.maillage.scale.setScalar(0.85 + 0.35 * bat);
     }
-    controles.autoRotateSpeed = 0.5 + 1.8 * etat.urgence;
+    controles.autoRotateSpeed = etat.arret ? 0.25 : 0.5 + 1.8 * etat.urgence;
     controles.update();
     rendu.render(scene, camera);
   };
@@ -334,7 +343,7 @@ function CoeurSecours({ etat }: { etat: EtatCoeur }) {
       <svg
         viewBox="0 0 100 90"
         className="w-40"
-        style={{ transform: `scale(${etat.echelle})`, animation: `${animationsActives() ? 'coeur-bat' : 'none'} ${60 / etat.bpm}s ease-in-out infinite` }}
+        style={{ transform: `scale(${etat.echelle})`, animation: etat.arret || etat.bpm <= 0 || !animationsActives() ? 'none' : `coeur-bat ${60 / etat.bpm}s ease-in-out infinite` }}
         role="img"
         aria-label="Cœur"
       >
@@ -368,5 +377,5 @@ export function Coeur3D({ etat, className = '' }: { etat: EtatCoeur; className?:
   }, [etat]);
 
   if (secours) return <div className={className}><CoeurSecours etat={etat} /></div>;
-  return <div ref={conteneur} className={className} role="img" aria-label={`Cœur à ${etat.bpm} battements par minute`} />;
+  return <div ref={conteneur} className={className} role="img" aria-label={etat.arret ? 'Cœur à l’arrêt' : `Cœur à ${etat.bpm} battements par minute`} />;
 }
