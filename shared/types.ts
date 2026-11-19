@@ -235,7 +235,44 @@ export type BlocFiche =
     }
   | { type: 'etapes'; titre?: string; etapes: { titre: string; detail: string }[] }
   | { type: 'mnemo'; phrase: string; signification: string[] }
-  | { type: 'scene3d'; scene: Scene3D };
+  | { type: 'scene3d'; scene: Scene3D }
+  /** Paragraphe de cours, plus long qu'un bloc « texte » (gras et listes simples permis). */
+  | { type: 'paragraphe'; contenu: string }
+  /** Galerie d'illustrations, à faire défiler. */
+  | { type: 'images'; titre?: string; images: Illustration[] };
+
+/** Image qui illustre un passage : figure du cours, schéma dessiné par l'IA ou image libre de droits. */
+export type Illustration =
+  | { source: 'cours'; mediaId: string; legende?: string; page?: number }
+  | { source: 'schema'; svg: string; legende?: string }
+  | { source: 'web'; url: string; legende?: string; credit?: string; licence?: string; page?: string };
+
+/** Image extraite d'un PDF du cours, réduite (WebP en base64). Un document par image. */
+export interface Media {
+  id: string;
+  mimeType: 'image/webp';
+  donnees: string;
+  largeur: number;
+  hauteur: number;
+}
+
+export type NiveauCours = 'complet' | 'ultra';
+
+/** « Cours complet » (le cours du drive remis au propre) ou « cours ultra complet » (beaucoup plus loin). */
+export interface CoursDetaille {
+  /** `${chapitreId}:${niveau}` */
+  id: string;
+  chapitreId: string;
+  matiereId: string;
+  niveau: NiveauCours;
+  titre: string;
+  sections: SectionFiche[];
+  /** Version du chapitre au moment de la rédaction : si le chapitre change, le cours est refait. */
+  version: number;
+  genereLe: number;
+  /** Figures extraites du cours pour ce chapitre (réutilisées par le cours ultra complet). */
+  figures?: { mediaId: string; page: number; fichier: string }[];
+}
 
 export interface SectionFiche {
   id: string;
@@ -701,7 +738,7 @@ export interface Conversation {
   majLe: number;
 }
 
-export type TypeDocument = 'fiche' | 'resume' | 'qcm' | 'flashcards' | 'libre' | 'scene3d';
+export type TypeDocument = 'fiche' | 'resume' | 'qcm' | 'flashcards' | 'libre' | 'scene3d' | 'cours_ultra';
 
 /** Document créé à la demande, rangé dans la bibliothèque (texte à mise en forme simple). */
 export interface DocumentBiblio {

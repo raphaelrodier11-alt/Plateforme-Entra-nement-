@@ -33,6 +33,7 @@ const INDEX: Partial<Record<Collection, string>> = {
   documents: 'id, matiereId, creeLe',
   questionsPerso: 'id, chapitreId, entrainementId',
   entrainements: 'id, majLe',
+  cours: 'id, chapitreId',
 };
 
 export class BaseLocale extends Dexie {
@@ -54,17 +55,19 @@ export class BaseLocale extends Dexie {
     const v6: Collection[] = ['entrainements', 'questionsPerso'];
     const v8: Collection[] = ['evaluations'];
     const v9: Collection[] = ['notions'];
+    const v10: Collection[] = ['cours', 'medias'];
     const v4: Collection[] = ['annotations', 'explications'];
     const v5: Collection[] = ['explications'];
-    this.version(1).stores(schema(['depots', 'actualisations', ...assistant, ...v4, ...v6, ...v8, ...v9]));
-    this.version(2).stores(schema(['actualisations', ...assistant, ...v4, ...v6, ...v8, ...v9]));
-    this.version(3).stores(schema([...assistant, ...v4, ...v6, ...v8, ...v9]));
-    this.version(4).stores(schema([...v4, ...v6, ...v8, ...v9]));
-    this.version(5).stores(schema([...v5, ...v6, ...v8, ...v9]));
-    this.version(6).stores(schema([...v6, ...v8, ...v9]));
-    this.version(7).stores(schema([...v8, ...v9]));
+    this.version(1).stores(schema(['depots', 'actualisations', ...assistant, ...v4, ...v6, ...v8, ...v9, ...v10]));
+    this.version(2).stores(schema(['actualisations', ...assistant, ...v4, ...v6, ...v8, ...v9, ...v10]));
+    this.version(3).stores(schema([...assistant, ...v4, ...v6, ...v8, ...v9, ...v10]));
+    this.version(4).stores(schema([...v4, ...v6, ...v8, ...v9, ...v10]));
+    this.version(5).stores(schema([...v5, ...v6, ...v8, ...v9, ...v10]));
+    this.version(6).stores(schema([...v6, ...v8, ...v9, ...v10]));
+    this.version(7).stores(schema([...v8, ...v9, ...v10]));
     this.version(8).stores(schema(v9));
-    this.version(9).stores(schema([]));
+    this.version(9).stores(schema(v10));
+    this.version(10).stores(schema([]));
   }
 
   collection<T extends { id: string }>(nom: Collection): Table<T, string> {

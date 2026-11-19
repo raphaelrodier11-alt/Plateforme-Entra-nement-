@@ -34,7 +34,6 @@ import {
   estArret,
 } from './contexte';
 import { aTraiter, nbQuestionsCible, nbQuestionsReserve } from './import';
-import type { Piece } from './ia';
 import { erreurPublique, journal } from './journal';
 import {
   SYSTEME,
@@ -48,6 +47,8 @@ import {
   consigneQcm,
   type QuestionPourIa,
 } from './prompts';
+import { illustrerSections, mediasUtilises } from './illustrations';
+import { ressourcesDuChapitre } from './ressources';
 import { tokensDuTexte } from './tarifs';
 import {
   empreinte,
@@ -64,7 +65,6 @@ import {
 
 const QUESTIONS_PAR_LOT = 16;
 const CARACTERES_PAR_EXTRACTION = 55_000;
-const TAILLE_PIECES_MAX = 30_000_000;
 
 function objet(v: unknown): Record<string, unknown> {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
@@ -539,24 +539,6 @@ async function ecrireQuestions(
   return { questions: questions.slice(0, nombre + 2), cas: cas.filter((k) => utilises.has(k.id)) };
 }
 
-/** Fichiers du chapitre à montrer à l'IA (pour les schémas), dans la limite de taille. */
-async function piecesDuChapitre(c: Contexte, fichiers: Fichier[]): Promise<Piece[]> {
-  const pieces: Piece[] = [];
-  let taille = 0;
-  for (const f of fichiers.slice(0, 4)) {
-    try {
-      const { octets, mimeType } = await c.drive.telecharger({ ...f });
-      const piece = (await c.lire(octets, mimeType))?.piece;
-      if (!piece || taille + piece.octets.byteLength > TAILLE_PIECES_MAX) continue;
-      taille += piece.octets.byteLength;
-      pieces.push(piece);
-    } catch {
-      // Sans le fichier, la fiche est rédigée à partir du texte seul.
-    }
-  }
-  return pieces;
-}
-
 export async function genererChapitres(c: Contexte): Promise<void> {
   const ia = iaRequise(c);
   await enParallele(c.memoire.liste<Chapitre>('chapitres').filter((x) => x.aGenerer), CHAPITRES_EN_PARALLELE, async (chapitre) => {
@@ -570,18 +552,26 @@ export async function genererChapitres(c: Contexte): Promise<void> {
       const annales = questionsChapitre.filter((q) => q.source === 'annale');
       const enoncesAnnales = annales.map((q) => signature(q));
 
-      // 1. Fiche de révision.
-      const { resume, sections } = validerFiche(
+      // 1. Fiche de révision, illustrée (figures du cours, images libres, schémas).
+      const { pieces, figures } = await ressourcesDuChapitre(c, fichiers);
+      const redigee = validerFiche(
         await ia.json({
           niveau: 'masse',
           etape: 'Fiches de révision',
           systeme: SYSTEME,
           consigne: consigneFiche(chapitre.titre, cours, enoncesAnnales),
-          pieces: await piecesDuChapitre(c, fichiers),
+          pieces,
         }),
         chapitre.id,
       );
-      if (sections.length === 0) throw new Error('Fiche vide');
+      const resume = redigee.resume;
+      if (redigee.sections.length === 0) throw new Error('Fiche vide');
+      const sections = await illustrerSections(redigee.sections, redigee.indications, figures);
+      const utilises = mediasUtilises(sections);
+      await c.memoire.ecrire(
+        'medias',
+        ...figures.filter((f) => utilises.has(f.media.id)).map((f) => f.media),
+      );
       const ancienne = c.memoire.lire<Fiche>('fiches', chapitre.id);
       const fiche: Fiche = {
         id: chapitre.id,

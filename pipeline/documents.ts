@@ -19,6 +19,7 @@ const TAILLE_MAX = 60_000;
 export function demandesATraiter(memoire: Memoire, maintenant: number): DemandeDocument[] {
   return memoire
     .liste<DemandeDocument>('demandes')
+    .filter((d) => d.type !== 'cours_ultra')
     .filter((d) => d.statut === 'en_attente' || (d.statut === 'en_cours' && maintenant - d.majLe > DELAI_REPRISE_MS))
     .sort((a, b) => a.creeLe - b.creeLe);
 }

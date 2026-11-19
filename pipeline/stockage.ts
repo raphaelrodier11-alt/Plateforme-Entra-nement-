@@ -88,6 +88,11 @@ export class Memoire {
     }
   }
 
+  /** Ouvre une collection en écriture seule, sans la lire (images volumineuses, jamais relues par le pipeline). */
+  ouvrirVide(...noms: Collection[]): void {
+    for (const nom of noms) if (!this.collections.has(nom)) this.collections.set(nom, new Map());
+  }
+
   private table(nom: Collection): Map<string, { id: string }> {
     const table = this.collections.get(nom);
     if (!table) throw new Error(`Collection non chargée : ${nom}`);

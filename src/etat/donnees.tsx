@@ -11,7 +11,7 @@ import { calculer, type Brut, type Donnees } from './calcul';
 const Contexte = createContext<Donnees | undefined>(undefined);
 
 const TABLES: (keyof Brut)[] = [
-  'matieres', 'chapitres', 'questions', 'cas', 'fiches', 'flashcards', 'partiels',
+  'matieres', 'chapitres', 'questions', 'cas', 'fiches', 'flashcards', 'cours', 'partiels',
   'fichiers', 'depots', 'actualisations', 'anomalies', 'illisibles', 'notifications', 'estimations', 'etat',
   'tentatives', 'sessions', 'disponibilites', 'examens', 'evenements', 'reglages',
   'decisions', 'taches', 'revues', 'questionsPerso', 'entrainements', 'evaluations', 'notions',

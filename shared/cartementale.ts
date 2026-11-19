@@ -39,6 +39,10 @@ function pointsDuBloc(bloc: BlocFiche): string[] {
     }
     case 'scene3d':
       return [`3D : ${court(bloc.scene.titre)}`];
+    case 'paragraphe':
+      return [court(bloc.contenu)];
+    case 'images':
+      return [];
   }
 }
 

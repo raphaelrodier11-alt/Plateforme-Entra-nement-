@@ -18,6 +18,8 @@ export const COLLECTIONS = {
   cas: 'contenu',
   fiches: 'contenu',
   flashcards: 'contenu',
+  cours: 'contenu',
+  medias: 'contenu',
   anomalies: 'contenu',
   illisibles: 'contenu',
   estimations: 'contenu',

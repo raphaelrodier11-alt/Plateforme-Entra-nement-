@@ -301,6 +301,18 @@ export class IaTest implements Ia {
         ],
       };
     }
+    if (etape === 'Cours complet' || etape === 'Cours ultra complet') {
+      return {
+        sections: ['Définition', 'Mécanisme', 'Traitement'].map((titre) => ({
+          titre,
+          pages: [1],
+          blocs: [
+            { type: 'paragraphe', contenu: `${titre} : texte rédigé du cours.` },
+            { type: 'pieges', elements: ['Piège fréquent'] },
+          ],
+        })),
+      };
+    }
     if (etape === 'QCM et examens blancs') {
       const n = Number(/^Écris (\d+) questions/.exec(consigne)![1]);
       this.numero += n;

@@ -108,7 +108,7 @@ Réponds par : {"classement":[{"ref":"q1","chapitre":"identifiant ou null"}]}`;
 }
 
 const FORMAT_FICHE = `{"resume":"une phrase qui résume le chapitre",
- "sections":[{"titre":"…","blocs":[
+ "sections":[{"titre":"…","pages":[3,4],"fichier":"début du nom du fichier source, seulement s'il y en a plusieurs","recherches":["requête en anglais pour trouver une image libre de droits"],"schemas":[{"titre":"…","svg":"<svg viewBox=\\"0 0 400 260\\">…</svg>"}],"blocs":[
    {"type":"texte","contenu":"2 à 4 phrases au maximum"},
    {"type":"liste","titre":"…","elements":["3 à 6 éléments courts"]},
    {"type":"cles","elements":["points à retenir absolument"]},
@@ -122,6 +122,12 @@ const FORMAT_FICHE = `{"resume":"une phrase qui résume le chapitre",
       "etapes":[{"titre":"…","texte":"…","focus":["a"],"masques":[],"flux":[{"tube":"id d'un tube","couleur":"#ffb38f"}],"camera":[0,2,8]}]}}
  ]}]}`;
 
+/** Consigne commune : comment indiquer les images qui illustrent une section. */
+const CONSIGNE_IMAGES = `Illustrations (champs de section, tous facultatifs mais à renseigner dès que c'est utile) :
+- "pages" : numéros des pages du cours d'où la section est tirée (repère « --- Page n --- »). Les figures de ces pages seront affichées avec la section. N'invente aucun numéro.
+- "recherches" : 1 ou 2 requêtes courtes EN ANGLAIS (ex. « aortic valve anatomy », « glomerulus histology ») pour trouver des images libres de droits sur Wikimedia Commons ; uniquement pour des structures anatomiques, histologiques, radiologiques ou des mécanismes bien connus.
+- "schemas" : au plus un schéma SVG simple et lisible (viewBox="0 0 400 260", formes, flèches, textes courts en français, couleurs sobres, sans script ni image externe) quand un mécanisme ou une cascade se comprend mieux dessiné.`;
+
 export function consigneFiche(titre: string, cours: string, annales: string[]): string {
   return `Rédige la fiche de révision du chapitre « ${titre} » à partir du cours ci-dessous (et des documents joints s'il y en a : ils contiennent les schémas).
 
@@ -132,6 +138,7 @@ Objectif : une fiche très visuelle, qui couvre tout le chapitre, à relire en 1
 - Ajoute des moyens mnémotechniques quand ils sont classiques ou réellement utiles.
 - Ajoute au plus deux blocs "scene3d" quand un mécanisme se comprend mieux dans l'espace (circulation, trajet d'un influx, anatomie simple, filtration…). Une scène est schématique : 3 à 12 objets simples dans un cube de −4 à 4, des tubes pour les trajets, 3 à 6 étapes qui mettent des objets en évidence ("focus") et animent un flux le long d'un tube. Couleurs au format #rrggbb. Si aucun mécanisme ne s'y prête, n'en mets pas.
 - Insiste sur les notions tombées aux partiels (questions d'annales ci-dessous).
+${CONSIGNE_IMAGES}
 - Tout doit être exact et fidèle au cours ; complète avec des connaissances établies seulement si le cours est muet sur un point indispensable.
 
 Questions d'annales rattachées au chapitre :
@@ -390,4 +397,36 @@ Réponds par :
 
 === COURS ===
 ${borner(d.cours)}`;
+}
+
+const DESCRIPTION_COURS = {
+  complet: `COURS COMPLET : c'est le cours du drive remis au propre. Il reprend TOUT le contenu des documents, dans l'ordre du cours, sans rien omettre (définitions, classifications, valeurs, critères, démarches, schémas décrits), mais bien structuré, clair et lisible.
+- Découpe en sections qui suivent le plan du cours (6 à 14 sections).
+- Chaque section : un ou plusieurs blocs "paragraphe" (texte rédigé, clair, avec **gras** pour les termes clés et listes à puces simples si besoin), complétés par des blocs "liste", "arbre", "schema", "etapes" quand le cours en contient la matière.
+- Annote le cours : après les passages concernés, ajoute un bloc "pieges" (pièges fréquents, confusions classiques, formulations d'examen) et un bloc "cles" (à retenir).
+- Corrige les fautes évidentes sans changer le sens. N'ajoute pas de notion absente du cours, sauf une précision indispensable à la compréhension.`,
+  ultra: `COURS ULTRA COMPLET : il va BEAUCOUP plus loin que le cours du drive et doit être nettement plus long. Il explique tout le pourquoi du comment : mécanismes et physiopathologie pas à pas, tenants et aboutissants, causes et conséquences, toutes les possibilités et formes cliniques, diagnostics différentiels, complications, exceptions, arguments pour et contre, repères chiffrés, liens avec les autres chapitres et les notions de base à connaître.
+- Découpe en 8 à 16 sections, du plus fondamental au plus clinique.
+- Chaque section : plusieurs blocs "paragraphe" développés (rédigés, pédagogiques, avec **gras** pour les termes clés), complétés par "etapes" (mécanismes), "arbre" (démarches), "schema" (relations), "liste", "mnemo".
+- Après chaque grande notion, un bloc "pieges" (pièges fréquents) et un bloc "cles".
+- Tout ce qui s'écarte du cours des profs doit rester établi et exact ; ce qui est au programme du cours doit toujours y figurer.`,
+} as const;
+
+export function consigneCours(niveau: 'complet' | 'ultra', titre: string, cours: string, annales: string[]): string {
+  return `Rédige le ${niveau === 'complet' ? 'cours complet' : 'cours ultra complet'} du chapitre « ${titre} » à partir du cours ci-dessous (et des documents joints, qui contiennent les schémas).
+
+${DESCRIPTION_COURS[niveau]}
+- N'utilise jamais de tableau.
+- Les blocs "paragraphe" font 80 à 250 mots chacun.
+- Insiste sur les notions tombées aux partiels (questions d'annales ci-dessous).
+${CONSIGNE_IMAGES}
+
+Questions d'annales rattachées au chapitre :
+${annales.length ? annales.map((a) => `- ${a.replace(/\s+/g, ' ').slice(0, 300)}`).join('\n') : '(aucune)'}
+
+Format de réponse (types de blocs à combiner librement ; en plus des blocs ci-dessous : {"type":"paragraphe","contenu":"texte rédigé"}) :
+${FORMAT_FICHE}
+
+=== COURS ===
+${borner(cours)}`;
 }

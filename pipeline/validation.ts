@@ -6,6 +6,7 @@
  * seule bonne réponse pour un choix simple, explication obligatoire, source
  * obligatoire pour une correction…), écartée.
  */
+import type { IndicationIllustration } from './illustrations';
 import type {
   Anomalie,
   Changement,
@@ -410,6 +411,10 @@ export function validerBloc(v: unknown): BlocFiche | undefined {
       const scene = validerScene(b.scene);
       return scene ? { type: 'scene3d', scene } : undefined;
     }
+    case 'paragraphe': {
+      const contenu = texte(b.contenu, 6000);
+      return contenu ? { type: 'paragraphe', contenu } : undefined;
+    }
     default:
       // Type inconnu (dont les tableaux, volontairement non prévus) : écarté.
       return undefined;
@@ -419,20 +424,34 @@ export function validerBloc(v: unknown): BlocFiche | undefined {
 export function validerFiche(
   v: unknown,
   chapitreId: string,
-): { resume?: string; sections: SectionFiche[] } {
+): { resume?: string; sections: SectionFiche[]; indications: IndicationIllustration[] } {
   const racine = objet(v) ?? {};
-  const sections = liste(racine.sections)
+  const candidates = liste(racine.sections)
     .map(objet)
-    .map((s, i) => ({
-      id: `${chapitreId}-s${i + 1}`,
+    .map((s) => ({
       titre: texte(s?.titre, 160),
       blocs: liste(s?.blocs)
         .map(validerBloc)
         .filter((b): b is BlocFiche => !!b),
+      indication: {
+        pages: liste(s?.pages).map(entier).filter((n): n is number => !!n && n > 0).slice(0, 6),
+        ...(texte(s?.fichier, 120) ? { fichier: texte(s?.fichier, 120) } : {}),
+        recherches: textes(s?.recherches, 2, 120),
+        schemas: liste(s?.schemas)
+          .map(objet)
+          .map((x) => ({ titre: texte(x?.titre, 120), svg: typeof x?.svg === 'string' ? x.svg.slice(0, 24_000) : '' }))
+          .filter((x) => x.svg)
+          .slice(0, 1),
+      } satisfies IndicationIllustration,
     }))
     .filter((s) => s.titre && s.blocs.length > 0)
     .slice(0, 14);
-  return { ...(texte(racine.resume, 300) ? { resume: texte(racine.resume, 300) } : {}), sections };
+  const sections = candidates.map((s, i): SectionFiche => ({ id: `${chapitreId}-s${i + 1}`, titre: s.titre, blocs: s.blocs }));
+  return {
+    ...(texte(racine.resume, 300) ? { resume: texte(racine.resume, 300) } : {}),
+    sections,
+    indications: candidates.map((s) => s.indication),
+  };
 }
 
 export function validerFlashcards(v: unknown): { recto: string; verso: string }[] {

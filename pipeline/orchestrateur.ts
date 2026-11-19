@@ -30,6 +30,7 @@ import { idDossier, type Drive } from './drive';
 import { comparer, finaliserAnciens } from './actualisations';
 import { DOSSIER_DEPOT, driveComposite, driveDepot, estFichierDepot, idFichierDepot } from './depot';
 import { DOSSIER_MOODLE, driveMoodle, notificationsMoodle } from './moodle';
+import { chapitresSansCours, completerCours, demandesCoursUltra, traiterCoursUltra } from './cours';
 import { demandesATraiter, traiterDemandes } from './documents';
 import { entrainementsATraiter, traiterEntrainements } from './entrainements';
 import { ajouterQuestions, genererChapitres, traiterAnnales, verifierChapitres } from './generation';
@@ -85,7 +86,8 @@ const NOMS_PAR_DEFAUT: Record<Niveau, string> = {
 export async function executer(d: Dependances): Promise<Issue> {
   const maintenant = d.maintenant ?? Date.now();
   const memoire = new Memoire(d.stockage);
-  await memoire.charger('reglages', 'etat', 'taches', 'fichiers', 'depots', 'chapitres', 'estimations', 'notifications', 'demandes', 'entrainements');
+  await memoire.charger('reglages', 'etat', 'taches', 'fichiers', 'depots', 'chapitres', 'estimations', 'notifications', 'demandes', 'entrainements', 'cours', 'fiches');
+  memoire.ouvrirVide('medias');
 
   const reglages = memoire.lire<Reglages>('reglages', 'principal');
   const lireEtat = (): EtatPipeline =>
@@ -121,8 +123,9 @@ export async function executer(d: Dependances): Promise<Issue> {
 
   // Demandes de l'app (documents, entraînements sur mesure) : traitées en premier, indépendamment de l'import.
   const aDesDemandes = demandesATraiter(memoire, maintenant).length > 0;
+  const aDesCoursUltra = demandesCoursUltra(memoire, maintenant).length > 0;
   const aDesEntrainements = entrainementsATraiter({ memoire, maintenant }).length > 0;
-  if (d.creerIa && (aDesDemandes || aDesEntrainements)) {
+  if (d.creerIa && (aDesDemandes || aDesEntrainements || aDesCoursUltra)) {
     await memoire.charger('matieres', 'documents');
     try {
       const iaDemandes = await d.creerIa({
@@ -135,6 +138,19 @@ export async function executer(d: Dependances): Promise<Issue> {
       if (aDesDemandes) {
         const n = await traiterDemandes(memoire, iaDemandes, maintenant);
         journal(`Documents demandés : ${n} rédigé${n > 1 ? 's' : ''}`);
+      }
+      if (aDesCoursUltra) {
+        await memoire.charger('questions', 'textes');
+        const contexteCours: Contexte = {
+          memoire,
+          drive: { lister: async () => [], telecharger: async () => { throw new Error('Sans drive'); } },
+          ia: iaDemandes,
+          maintenant,
+          lire: d.lire,
+          echeance: Date.now() + Math.min(d.budgetMinutes, 30) * 60_000,
+        };
+        const n = await traiterCoursUltra(contexteCours);
+        journal(`Cours ultra complets : ${n} rédigé${n > 1 ? 's' : ''}`);
       }
       if (aDesEntrainements) {
         await memoire.charger('questionsPerso', 'questions', 'cas', 'textes');
@@ -199,7 +215,8 @@ export async function executer(d: Dependances): Promise<Issue> {
   };
   const resteDuTravail = (): boolean =>
     memoire.liste<Fichier>('fichiers').some(aTraiter) ||
-    memoire.liste<Chapitre>('chapitres').some((x) => x.aGenerer || x.aVerifier || x.aComparer);
+    memoire.liste<Chapitre>('chapitres').some((x) => x.aGenerer || x.aVerifier || x.aComparer) ||
+    (!!d.creerIa && chapitresSansCours(memoire).length > 0);
 
   const etatInitial = lireEtat();
   const scanDu =
@@ -358,6 +375,7 @@ export async function executer(d: Dependances): Promise<Issue> {
       await finaliserAnciens(contexte);
       await traiterAnnales(contexte);
       await genererChapitres(contexte);
+      await completerCours(contexte);
       await comparer(contexte);
       await verifierChapitres(contexte);
       for (const t of questionsDemandees) {

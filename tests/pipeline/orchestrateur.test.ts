@@ -3,6 +3,8 @@ import { estIncontournable } from '../../shared/marqueurs';
 import type {
   Anomalie,
   Chapitre,
+  CoursDetaille,
+  DemandeDocument,
   Estimation,
   EtatPipeline,
   Fiche,
@@ -430,5 +432,44 @@ describe('Drives ajoutés par l\'utilisateur', () => {
     expect(await passer()).not.toBe('erreur');
     expect(stockage.un<Fichier>('fichiers', 'f-paul')?.etat).not.toBe('supprime');
     expect(stockage.liste<NotificationApp>('notifications').some((n) => n.titre.includes('inaccessible'))).toBe(true);
+  });
+});
+
+describe('pipeline : cours complet et cours ultra complet', () => {
+  beforeEach(async () => {
+    await passer();
+    await approuver();
+    maintenant += 3_600_000;
+    await passer();
+  });
+
+  it('écrit le cours complet de chaque chapitre, avec ses sections', async () => {
+    const chapitre = stockage.liste<Chapitre>('chapitres').find((c) => c.titre === 'Insuffisance cardiaque')!;
+    const cours = stockage.un<CoursDetaille>('cours', `${chapitre.id}:complet`)!;
+    expect(cours).toMatchObject({ niveau: 'complet', chapitreId: chapitre.id, version: chapitre.version });
+    expect(cours.sections).toHaveLength(3);
+    expect(cours.sections[0]!.blocs.map((b) => b.type)).toEqual(['paragraphe', 'pieges']);
+    // Pas de cours ultra complet sans demande.
+    expect(stockage.un('cours', `${chapitre.id}:ultra`)).toBeUndefined();
+  });
+
+  it('ne refait pas le cours complet au passage suivant', async () => {
+    const avant = ias.flatMap((ia) => ia.appels).filter((a) => a.etape === 'Cours complet').length;
+    maintenant += 3_600_000;
+    await passer();
+    expect(ias.flatMap((ia) => ia.appels).filter((a) => a.etape === 'Cours complet')).toHaveLength(avant);
+  });
+
+  it('écrit le cours ultra complet à la demande', async () => {
+    const chapitre = stockage.liste<Chapitre>('chapitres').find((c) => c.titre === 'Insuffisance cardiaque')!;
+    await stockage.ecrire('demandes', [
+      { id: 'dem-ultra', type: 'cours_ultra', chapitreId: chapitre.id, matiereId: chapitre.matiereId, sujet: chapitre.titre, statut: 'en_attente', creeLe: maintenant, majLe: maintenant } satisfies DemandeDocument,
+    ]);
+    maintenant += 3_600_000;
+    await passer();
+    const ultra = stockage.un<CoursDetaille>('cours', `${chapitre.id}:ultra`)!;
+    expect(ultra).toMatchObject({ niveau: 'ultra' });
+    expect(stockage.un<DemandeDocument>('demandes', 'dem-ultra')?.statut).toBe('terminee');
+    expect(ias.flatMap((ia) => ia.appels).some((a) => a.etape === 'Cours ultra complet')).toBe(true);
   });
 });

@@ -28,6 +28,7 @@ export const LIBELLE_TYPE_DOCUMENT: Record<TypeDocument, string> = {
   flashcards: 'Flashcards',
   libre: 'Document libre',
   scene3d: 'Animation 3D',
+  cours_ultra: 'Cours ultra complet',
 };
 
 /** Le nombre de questions demandé dans une consigne (« 30 QCM »), s'il y en a un. */
@@ -76,6 +77,7 @@ export function systemeDocument(type: TypeDocument, matiere?: string): string {
       'Des flashcards : pour chacune « ### Carte n », « **Recto :** » (question courte) et « **Verso :** » (réponse courte et exacte).',
     libre: 'Le document demandé, structuré et facile à relire.',
     scene3d: 'Une animation 3D (voir la consigne dédiée).',
+    cours_ultra: 'Un cours très complet (voir la consigne dédiée).',
   };
   return `Tu es le Dr Rodier, médecin pédagogue. Tu rédiges un document de révision pour un étudiant en médecine (DFGSM 3, UPEC)${
     matiere ? `, matière « ${matiere} »` : ''

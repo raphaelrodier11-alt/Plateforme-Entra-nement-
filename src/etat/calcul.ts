@@ -37,6 +37,8 @@ import {
   type Examen,
   type Fiche,
   type Fichier,
+  type CoursDetaille,
+  type NiveauCours,
   type Flashcard,
   type Matiere,
   type NotificationApp,
@@ -63,6 +65,7 @@ export interface Brut {
   cas: CasClinique[];
   fiches: Fiche[];
   flashcards: Flashcard[];
+  cours: CoursDetaille[];
   partiels: Partiel[];
   fichiers: Fichier[];
   depots: Depot[];
@@ -96,6 +99,8 @@ export interface Donnees extends Omit<Brut, 'reglages' | 'etat'> {
   casParId: Map<string, CasClinique>;
   partielParId: Map<string, Partiel>;
   ficheParChapitre: Map<string, Fiche>;
+  /** Cours complet / ultra complet de chaque chapitre. */
+  coursParChapitre: Map<string, Partial<Record<NiveauCours, CoursDetaille>>>;
   questionsParChapitre: Map<string, Question[]>;
   chapitresParMatiere: Map<string, Chapitre[]>;
   /** Comparaisons avec les versions plus anciennes, par chapitre (celles qui montrent des changements d'abord). */
@@ -276,6 +281,11 @@ export function calculer(brutInitial: Brut, maintenant: number): Donnees {
     casParId: indexer(brut.cas),
     partielParId: indexer(brut.partiels),
     ficheParChapitre: new Map(brut.fiches.map((f) => [f.chapitreId, f])),
+    coursParChapitre: (() => {
+      const m = new Map<string, Partial<Record<NiveauCours, CoursDetaille>>>();
+      for (const c of brut.cours ?? []) m.set(c.chapitreId, { ...m.get(c.chapitreId), [c.niveau]: c });
+      return m;
+    })(),
     questionsParChapitre: grouper(brut.questions, (q) => q.chapitreId),
     chapitresParMatiere: grouper(chapitres, (c) => c.matiereId),
     actualisationsParChapitre: grouper(
