@@ -80,7 +80,7 @@ export function recommander(e: EntreeRecommandations): Recommandation[] {
   // Examens proches : chapitres jamais travaillés et examen blanc à faire.
   for (const examen of e.examens) {
     const jours = joursEntre(aujourdHui, examen.date);
-    if (jours < 0 || jours > 21) continue;
+    if (jours < 0 || jours > 21 || !examen.matiereId) continue;
     const nom = e.nomsMatieres.get(examen.matiereId) ?? 'la matière';
     const chapitres = e.stats.filter((s) => s.matiereId === examen.matiereId);
     const jamais = chapitres.filter((s) => s.statut === 'a_commencer');

@@ -223,7 +223,7 @@ function Disponibilites() {
 function ExamensEtCalendrier() {
   const d = useDonnees();
   const aujourdHui = cleJour(d.maintenant);
-  const [matiereId, setMatiereId] = useState(d.matieres[0]?.id ?? '');
+  const [matiereId, setMatiereId] = useState('');
   const [date, setDate] = useState('');
   const [nom, setNom] = useState('');
   const [lien, setLien] = useState(d.reglages.icsUrl ?? '');
@@ -238,10 +238,10 @@ function ExamensEtCalendrier() {
   }, [d.evenements]);
 
   const ajouter = async () => {
-    if (!matiereId || !date) return;
+    if (!date) return;
     const examen: Examen = {
       id: nouvelId(),
-      matiereId,
+      ...(matiereId ? { matiereId } : {}),
       titre: nom.trim().slice(0, 60) || 'Partiel',
       date,
       source: 'manuel',
@@ -355,7 +355,7 @@ function ExamensEtCalendrier() {
                   <GraduationCap size={18} className="shrink-0 text-accent-clair" aria-hidden />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">
-                      {libelleExamen(x.titre, d.matiereParId.get(x.matiereId)?.nom)}
+                      {libelleExamen(x.titre, d.matiereParId.get(x.matiereId ?? '')?.nom)}
                     </span>
                     <span className="chiffres block text-xs text-muet">
                       {jourLisible(x.date)} ·{' '}
@@ -377,7 +377,7 @@ function ExamensEtCalendrier() {
           </ul>
         )}
 
-        {d.matieres.length > 0 && (
+        {(
           <div className="flex flex-wrap items-end gap-2">
             <label className="min-w-40 flex-1 text-sm">
               <span className="mb-1 block text-xs text-muet">Nom du partiel</span>
@@ -390,8 +390,9 @@ function ExamensEtCalendrier() {
               />
             </label>
             <label className="min-w-36 flex-1 text-sm">
-              <span className="mb-1 block text-xs text-muet">Matière</span>
+              <span className="mb-1 block text-xs text-muet">Matière (facultatif)</span>
               <select value={matiereId} onChange={(e) => setMatiereId(e.target.value)} className={STYLE_CHAMP}>
+                <option value="">Aucune (partiel général)</option>
                 {d.matieres.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.nom}
@@ -551,7 +552,7 @@ export function PagePlanning() {
   const jours = [...new Set(planning.seances.map((s) => s.date))];
   const nomExamen = (id: string) => {
     const x = d.examens.find((e) => e.id === id);
-    return x ? `l'examen de ${d.matiereParId.get(x.matiereId)?.nom ?? x.titre}` : "l'examen";
+    return x ? `l'examen de ${d.matiereParId.get(x.matiereId ?? '')?.nom ?? x.titre}` : "l'examen";
   };
   const minutes = Object.entries(planning.minutesParMatiere)
     .map(([id, m]) => ({ id, libelle: d.matiereParId.get(id)?.nom ?? id, valeur: m, texte: dureeLisible(m) }))

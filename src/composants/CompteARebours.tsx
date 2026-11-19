@@ -36,9 +36,9 @@ export function CompteARebours() {
     >
       <ul className="space-y-3">
         {examens.map(({ x, jours }) => {
-          const matiere = d.matiereParId.get(x.matiereId);
-          const c = couleurMatiere(x.matiereId);
-          const avancement = d.statsMatiere.get(x.matiereId)?.avancement ?? 0;
+          const matiere = d.matiereParId.get(x.matiereId ?? '');
+          const c = couleurMatiere(x.matiereId ?? 'general');
+          const avancement = d.statsMatiere.get(x.matiereId ?? '')?.avancement ?? 0;
           const urgent = jours <= 7;
           const taches = seancesDuJour
             .flatMap((s) => s.taches.map((t) => ({ t, s })))

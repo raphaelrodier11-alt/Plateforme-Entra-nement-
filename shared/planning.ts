@@ -345,6 +345,7 @@ export function calculerPlanning(e: EntreePlanning): Planning {
   const examensFuturs = e.examens.filter((x) => joursEntre(aujourdHui, x.date) >= 0);
   const examensParMatiere = new Map<string, string[]>();
   for (const x of e.examens) {
+    if (!x.matiereId) continue;
     examensParMatiere.set(x.matiereId, [...(examensParMatiere.get(x.matiereId) ?? []), x.date]);
   }
   const desExamensExistent = examensFuturs.length > 0;
@@ -358,7 +359,7 @@ export function calculerPlanning(e: EntreePlanning): Planning {
   // Examen blanc : une séance assez longue, de préférence 2 à 6 jours avant.
   const examenBlancDe = new Map<string, Examen>();
   for (const x of examensFuturs) {
-    if (!matieresAvecChapitres.has(x.matiereId)) continue;
+    if (!x.matiereId || !matieresAvecChapitres.has(x.matiereId)) continue;
     const candidates = seances.filter((s) => {
       const j = joursEntre(s.date, x.date);
       return j >= 1 && j <= 6 && s.dureeMin >= 45 && !examenBlancDe.has(s.id);
@@ -412,11 +413,11 @@ export function calculerPlanning(e: EntreePlanning): Planning {
       const j = joursEntre(seance.date, examen.date);
       taches.push({
         type: 'examen_blanc',
-        matiereId: examen.matiereId,
+        matiereId: examen.matiereId!,
         dureeMin: duree,
         raison: `Examen dans ${j} jour${j > 1 ? 's' : ''} : entraînement en conditions réelles`,
       });
-      minutesParMatiere[examen.matiereId] = (minutesParMatiere[examen.matiereId] ?? 0) + duree;
+      minutesParMatiere[examen.matiereId!] = (minutesParMatiere[examen.matiereId!] ?? 0) + duree;
       reste -= duree;
     }
 

@@ -68,7 +68,7 @@ export function suggerer(e: EntreeSuggestions): Suggestion[] {
   const dejaExamen = new Set<string>();
   for (const ex of [...e.examens].sort((a, b) => a.date.localeCompare(b.date))) {
     const jours = joursEntre(e.aujourdHui, ex.date);
-    const m = matiere.get(ex.matiereId);
+    const m = ex.matiereId ? matiere.get(ex.matiereId) : undefined;
     if (!m || jours < 0 || jours > JOURS_EXAMEN || dejaExamen.has(m.id)) continue;
     dejaExamen.add(m.id);
     ajouter(

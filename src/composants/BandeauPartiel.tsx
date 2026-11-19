@@ -34,12 +34,12 @@ export function BandeauPartiel() {
   const alerte = candidats[0];
   if (!alerte) return null;
 
-  const matiere = d.matiereParId.get(alerte.x.matiereId);
-  const faibles = (d.chapitresParMatiere.get(alerte.x.matiereId) ?? [])
+  const matiere = d.matiereParId.get(alerte.x.matiereId ?? '');
+  const faibles = (alerte.x.matiereId ? (d.chapitresParMatiere.get(alerte.x.matiereId) ?? []) : d.chapitres)
     .map((c) => ({ c, m: d.maitriseParChapitre.get(c.id) ?? 0 }))
     .sort((a, b) => a.m - b.m)
     .slice(0, 3);
-  const dues = d.notions.filter((n) => notionDue(n, jour) && d.chapitreParId.get(n.chapitreId)?.matiereId === alerte.x.matiereId).length;
+  const dues = d.notions.filter((n) => notionDue(n, jour) && (!alerte.x.matiereId || d.chapitreParId.get(n.chapitreId)?.matiereId === alerte.x.matiereId)).length;
   const etiquette = alerte.jours === 0 ? 'C’est aujourd’hui' : `J-${alerte.jours}`;
   const conseil =
     alerte.jours <= 1

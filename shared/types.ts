@@ -532,7 +532,8 @@ export interface Disponibilite {
 
 export interface Examen {
   id: string;
-  matiereId: string;
+  /** Absente pour un partiel général (compte à rebours sans matière). */
+  matiereId?: string;
   titre: string;
   /** Jour au format AAAA-MM-JJ. */
   date: string;

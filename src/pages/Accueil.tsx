@@ -91,7 +91,7 @@ export function Accueil() {
   const prochainExamen = examens[0];
   const message = accroche(new Date(d.maintenant), {
     prenom: d.reglages.prenom,
-    examen: prochainExamen ? { jours: joursEntre(aujourdHui, prochainExamen.date), matiere: libelleExamen(prochainExamen.titre, d.matiereParId.get(prochainExamen.matiereId)?.nom) } : undefined,
+    examen: prochainExamen ? { jours: joursEntre(aujourdHui, prochainExamen.date), matiere: libelleExamen(prochainExamen.titre, d.matiereParId.get(prochainExamen.matiereId ?? '')?.nom) } : undefined,
     serie: profil.series.courante,
     erreursDues: d.erreursDues.length,
   });
@@ -298,7 +298,7 @@ export function Accueil() {
           ) : (
             <ul className="space-y-3">
               {examens.map((x) => {
-                const prediction = d.predictions.get(x.matiereId);
+                const prediction = d.predictions.get(x.matiereId ?? '');
                 const jours = joursEntre(aujourdHui, x.date);
                 return (
                   <li key={x.id} className="flex items-center gap-3">
@@ -307,7 +307,7 @@ export function Accueil() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
-                        {libelleExamen(x.titre, d.matiereParId.get(x.matiereId)?.nom)}
+                        {libelleExamen(x.titre, d.matiereParId.get(x.matiereId ?? '')?.nom)}
                       </p>
                       <p className="text-xs text-muet">
                         {jours === 0 ? "Aujourd'hui" : `Dans ${jours} jour${jours > 1 ? 's' : ''}`} ·{' '}

@@ -21,7 +21,7 @@ export function useSituationRetard(): SituationRetard {
     const prochain = d.examens.filter((e) => e.date >= jour).sort((a, b) => a.date.localeCompare(b.date))[0];
     let maitrise: number | undefined;
     if (prochain) {
-      const valeurs = (d.chapitresParMatiere.get(prochain.matiereId) ?? []).map((c) => d.maitriseParChapitre.get(c.id) ?? 0);
+      const valeurs = (prochain.matiereId ? (d.chapitresParMatiere.get(prochain.matiereId) ?? []) : d.chapitres).map((c) => d.maitriseParChapitre.get(c.id) ?? 0);
       if (valeurs.length) maitrise = valeurs.reduce((a, b) => a + b, 0) / valeurs.length;
     }
     return situationRetard({

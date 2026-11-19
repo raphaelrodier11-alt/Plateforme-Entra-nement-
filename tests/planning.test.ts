@@ -317,6 +317,18 @@ describe('priorités du planning', () => {
     expect(planning.minutesParMatiere.nephro).toBeGreaterThan(planning.minutesParMatiere.cardio!);
   });
 
+  it('accepte un partiel général, sans matière, sans rien casser', () => {
+    const planning = calculerPlanning(
+      entree({
+        disponibilites: semaine,
+        chapitres: [chapitre('c1', 'cardio', 0.3)],
+        examens: [{ id: 'x', titre: 'Partiel final', date: '2026-11-23', source: 'manuel' }],
+      }),
+    );
+    expect(planning.seances.length).toBeGreaterThan(0);
+    expect(planning.minutesParMatiere.cardio).toBeGreaterThan(0);
+  });
+
   it('ne planifie plus une matière dont l\'examen est passé', () => {
     const planning = calculerPlanning(
       entree({

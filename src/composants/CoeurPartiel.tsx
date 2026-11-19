@@ -35,14 +35,14 @@ export function CoeurPartiel() {
   );
   const suivi = avenir.find(({ x }) => x.id === choisi) ?? avenir[0];
   const etat = useMemo(() => etatCoeur(suivi?.jours), [suivi?.jours]);
-  const matiere = suivi ? d.matiereParId.get(suivi.x.matiereId) : undefined;
+  const matiere = suivi ? d.matiereParId.get(suivi.x.matiereId ?? '') : undefined;
   const urgent = etat.urgence > 0.6;
 
   const ajouter = async () => {
-    if (!date || !matiereId) return;
+    if (!date) return;
     const examen: Examen = {
       id: `exam-${crypto.randomUUID()}`,
-      matiereId,
+      ...(matiereId ? { matiereId } : {}),
       titre: titre.trim() || 'Partiel',
       date,
       source: 'manuel',
@@ -99,7 +99,7 @@ export function CoeurPartiel() {
           {avenir.map(({ x, jours }) => (
             <span key={x.id} className="group inline-flex items-center">
               <Puce actif={suivi?.x.id === x.id} onClick={() => setChoisi(x.id)}>
-                {libelleExamen(x.titre, d.matiereParId.get(x.matiereId)?.nom)} · J-{jours}
+                {libelleExamen(x.titre, d.matiereParId.get(x.matiereId ?? '')?.nom)} · J-{jours}
               </Puce>
               {x.source === 'manuel' && (
                 <button
@@ -119,9 +119,9 @@ export function CoeurPartiel() {
       {ajout && (
         <div className="apparait mt-4 space-y-3 rounded-2xl bg-surface-2 p-3.5">
           <label className="block text-sm">
-            <span className="mb-1 block text-xs text-muet">Matière</span>
+            <span className="mb-1 block text-xs text-muet">Matière (facultatif)</span>
             <select value={matiereId} onChange={(e) => setMatiereId(e.target.value)} className={STYLE_CHAMP}>
-              <option value="">Choisis une matière</option>
+              <option value="">Aucune (partiel général)</option>
               {d.matieres.map((m) => (
                 <option key={m.id} value={m.id}>{m.nom}</option>
               ))}
@@ -135,7 +135,7 @@ export function CoeurPartiel() {
             <span className="mb-1 block text-xs text-muet">Nom du partiel</span>
             <input value={titre} onChange={(e) => setTitre(e.target.value)} maxLength={60} placeholder="Partiel final, CC, rattrapage…" className={STYLE_CHAMP} />
           </label>
-          <Bouton variante="primaire" icone={CalendarPlus} disabled={!date || !matiereId} onClick={() => void ajouter()}>
+          <Bouton variante="primaire" icone={CalendarPlus} disabled={!date} onClick={() => void ajouter()}>
             Enregistrer ce partiel
           </Bouton>
         </div>
