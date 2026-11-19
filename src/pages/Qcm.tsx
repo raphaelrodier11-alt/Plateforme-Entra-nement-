@@ -12,7 +12,6 @@ import {
   Carte,
   EtatVide,
   Puce,
-  STYLE_CHAMP,
   TitrePage,
   nombre,
 } from '../composants/ui';
@@ -48,7 +47,8 @@ export function Qcm() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
-  const [matiereId, setMatiereId] = useState(params.get('matiere') ?? '');
+  const [matiereIds, setMatiereIds] = useState<string[]>(params.get('matiere') ? [params.get('matiere')!] : []);
+  const [equilibre, setEquilibre] = useState(true);
   const [chapitreIds, setChapitreIds] = useState<string[]>([]);
   const [nombreVoulu, setNombreVoulu] = useState(10);
   const [types, setTypes] = useState<TypeFiltre[]>([]);
@@ -58,7 +58,8 @@ export function Qcm() {
 
   const filtre: FiltreQcm = useMemo(
     () => ({
-      matiereId: matiereId || undefined,
+      matiereIds,
+      equilibre,
       chapitreIds,
       nombre: nombreVoulu,
       types,
@@ -66,7 +67,7 @@ export function Qcm() {
       source,
       incontournables,
     }),
-    [matiereId, chapitreIds, nombreVoulu, types, difficultes, source, incontournables],
+    [matiereIds, equilibre, chapitreIds, nombreVoulu, types, difficultes, source, incontournables],
   );
   const disponibles = useMemo(() => questionsCorrespondantes(d, filtre).length, [d, filtre]);
 
@@ -78,23 +79,27 @@ export function Qcm() {
     );
   }
 
-  const chapitres = matiereId ? (d.chapitresParMatiere.get(matiereId) ?? []) : [];
+  // Les chapitres se choisissent dans les matières retenues (jusqu'à quatre, pour rester lisible).
+  const matieresChoisies = matiereIds.slice(0, 4);
   const recentes = [...d.sessions].sort((a, b) => b.debut - a.debut).slice(0, 8);
 
   const lancer = async () => {
     const questions = choisirQuestions(d, filtre);
     if (questions.length === 0) return;
+    const noms = matiereIds.map((id) => d.matiereParId.get(id)?.nom).filter(Boolean);
     const titre =
       chapitreIds.length === 1
         ? (d.chapitreParId.get(chapitreIds[0]!)?.titre ?? 'QCM')
-        : matiereId
-          ? (d.matiereParId.get(matiereId)?.nom ?? 'QCM')
-          : 'Toutes les matières';
+        : noms.length === 0
+          ? 'Mélange de toutes les matières'
+          : noms.length <= 3
+            ? noms.join(' + ')
+            : `Mélange de ${noms.length} matières`;
     const id = await demarrerSession({
       type: 'qcm',
       titre: incontournables ? `${titre} — incontournables` : titre,
       questions,
-      matiereId: matiereId || undefined,
+      matiereId: matiereIds.length === 1 ? matiereIds[0] : undefined,
       chapitreIds: chapitreIds.length ? chapitreIds : undefined,
     });
     void navigate(`/session/${id}`);
@@ -106,43 +111,56 @@ export function Qcm() {
 
       <Carte className="mb-4">
         <div className="space-y-5">
-          <label className="block text-sm">
-            <span className="mb-1.5 block text-texte-2">Matière</span>
-            <select
-              value={matiereId}
-              onChange={(e) => {
-                setMatiereId(e.target.value);
-                setChapitreIds([]);
-              }}
-              className={STYLE_CHAMP}
-            >
-              <option value="">Toutes les matières</option>
-              {d.matieres.map((m) => (
-                <option key={m.id} value={m.id}>
+          <fieldset>
+            <legend className="mb-1.5 text-sm text-texte-2">
+              Sujets <span className="text-muet">(rien de coché : un mélange de toutes les matières)</span>
+            </legend>
+            <div className="flex flex-wrap gap-1.5">
+              <Puce actif={matiereIds.length === 0} onClick={() => { setMatiereIds([]); setChapitreIds([]); }}>
+                Tout mélanger
+              </Puce>
+              {d.matieres.filter((m) => (d.chapitresParMatiere.get(m.id) ?? []).length > 0).map((m) => (
+                <Puce
+                  key={m.id}
+                  actif={matiereIds.includes(m.id)}
+                  onClick={() => {
+                    const suite = basculer(matiereIds, m.id);
+                    setMatiereIds(suite);
+                    // Les chapitres cochés d'une matière décochée sont retirés.
+                    setChapitreIds((l) => l.filter((id) => suite.includes(d.chapitreParId.get(id)?.matiereId ?? '')));
+                  }}
+                >
                   {m.nom}
-                </option>
+                </Puce>
               ))}
-            </select>
-          </label>
-
-          {chapitres.length > 0 && (
-            <fieldset>
-              <legend className="mb-1.5 text-sm text-texte-2">
-                Chapitres <span className="text-muet">(tous si aucun n'est choisi)</span>
-              </legend>
-              <div className="flex flex-wrap gap-1.5">
-                {chapitres.map((c) => (
-                  <Puce
-                    key={c.id}
-                    actif={chapitreIds.includes(c.id)}
-                    onClick={() => setChapitreIds(basculer(chapitreIds, c.id))}
-                  >
-                    {c.titre}
-                  </Puce>
-                ))}
+            </div>
+            {(matiereIds.length === 0 || matiereIds.length > 1) && (
+              <div className="mt-2">
+                <Puce actif={equilibre} onClick={() => setEquilibre(!equilibre)}>
+                  Répartir équitablement entre les matières
+                </Puce>
               </div>
-            </fieldset>
-          )}
+            )}
+          </fieldset>
+
+          {matieresChoisies.map((id) => {
+            const chapitres = d.chapitresParMatiere.get(id) ?? [];
+            if (chapitres.length === 0) return null;
+            return (
+              <fieldset key={id}>
+                <legend className="mb-1.5 text-sm text-texte-2">
+                  Chapitres de {d.matiereParId.get(id)?.nom} <span className="text-muet">(tous si aucun n'est choisi)</span>
+                </legend>
+                <div className="flex flex-wrap gap-1.5">
+                  {chapitres.map((c) => (
+                    <Puce key={c.id} actif={chapitreIds.includes(c.id)} onClick={() => setChapitreIds(basculer(chapitreIds, c.id))}>
+                      {c.titre}
+                    </Puce>
+                  ))}
+                </div>
+              </fieldset>
+            );
+          })}
 
           <fieldset>
             <legend className="mb-1.5 text-sm text-texte-2">Nombre de questions</legend>

@@ -32,6 +32,10 @@ export const LIBELLE_TYPE: Record<TypeFiltre, string> = {
 
 export interface FiltreQcm {
   matiereId?: string;
+  /** Plusieurs matières à la fois (vide ou absent : toutes). */
+  matiereIds?: string[];
+  /** Répartit les questions à parts égales entre les matières présentes (sinon : tirage libre). */
+  equilibre?: boolean;
   chapitreIds?: string[];
   nombre: number;
   types?: TypeFiltre[];
@@ -48,6 +52,7 @@ export function categorie(q: Question): TypeFiltre {
 export function questionsCorrespondantes(d: Donnees, f: FiltreQcm): Question[] {
   return d.questions.filter((q) => {
     if (f.matiereId && q.matiereId !== f.matiereId) return false;
+    if (f.matiereIds?.length && !f.matiereIds.includes(q.matiereId)) return false;
     if (f.chapitreIds?.length && !f.chapitreIds.includes(q.chapitreId)) return false;
     if (f.types?.length && !f.types.includes(categorie(q))) return false;
     if (f.difficultes?.length && !f.difficultes.includes(q.difficulte)) return false;
@@ -83,8 +88,20 @@ export function choisirQuestions(d: Donnees, f: FiltreQcm, graine = Date.now()):
     (a, b) => Math.min(...a.map(rang)) - Math.min(...b.map(rang)),
   );
 
+  // Mélange équilibré : on prend à tour de rôle une question (ou un cas) de chaque matière.
+  let ordre = unites;
+  if (f.equilibre) {
+    const parMatiere = new Map<string, Question[][]>();
+    for (const u of unites) parMatiere.set(u[0]!.matiereId, [...(parMatiere.get(u[0]!.matiereId) ?? []), u]);
+    if (parMatiere.size > 1) {
+      const files = [...parMatiere.values()];
+      ordre = [];
+      for (let i = 0; files.some((fl) => i < fl.length); i++) for (const fl of files) if (fl[i]) ordre.push(fl[i]!);
+    }
+  }
+
   const choisies: Question[] = [];
-  for (const unite of unites) {
+  for (const unite of ordre) {
     if (choisies.length >= f.nombre) break;
     choisies.push(...unite.sort((a, b) => (a.ordreCas ?? 0) - (b.ordreCas ?? 0)));
   }
