@@ -44,3 +44,22 @@ export function matiereDepuisChemin(chemin: string | undefined, exigerSemestre =
   if (!dossier || SEMESTRE.test(dossier) || NON_MATIERE.test(dossier)) return undefined;
   return { nom: nomMatiereLisible(dossier), ...(semestre ? { semestre } : {}) };
 }
+
+/** Identifiant d'une matière d'après son nom : le même que celui créé par l'import à partir du dossier. */
+export function idMatiere(nom: string): string {
+  const lisible = nomMatiereLisible(nom);
+  const slug =
+    lisible
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'sans-titre';
+  return `m-${slug}`;
+}
+
+/** Préfixe de chemin qui range un fichier envoyé dans une matière (« SEMESTRE 5 / Cardiologie / »). */
+export function prefixeMatiere(nom: string, semestre: number): string {
+  return `SEMESTRE ${semestre}/${nomMatiereLisible(nom).replace(/[\\/]+/g, '-')}/`;
+}

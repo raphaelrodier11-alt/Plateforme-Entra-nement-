@@ -569,6 +569,8 @@ export interface Reglages {
   id: 'principal';
   /** Drives ajoutés en plus des trois dossiers principaux. */
   drives?: DriveSupplementaire[];
+  /** Matières ajoutées à la main (avant tout fichier) ; elles rejoignent celles de l'import dès le premier envoi. */
+  matieresManuelles?: { id: string; nom: string; semestre: number }[];
   /** Périodes où une matière passe en priorité dans l'emploi du temps. */
   priorites?: { id: string; matiereId: string; debut: string; fin: string }[];
   /** Nombre de passages voulus avant le partiel, par matière (1 = juste le programme). */

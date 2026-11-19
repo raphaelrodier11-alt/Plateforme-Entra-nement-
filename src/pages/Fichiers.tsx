@@ -20,7 +20,9 @@ import {
 import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EXTENSIONS_ACCEPTEES, TAILLE_MAX_FICHIER } from '../../shared/depot';
+import { prefixeMatiere } from '../../shared/matieres';
 import type { Depot, Fichier, RoleDepot } from '../../shared/types';
+import { MatieresManuelles } from '../composants/MatieresManuelles';
 import { Bouton, Carte, Jauge, Onglets, Pastille, STYLE_CHAMP, TitrePage, nombre } from '../composants/ui';
 import { base } from '../db/base';
 import { synchroniser } from '../db/sync';
@@ -75,6 +77,7 @@ export function Fichiers() {
   const d = useDonnees();
   const sync = useEtatSync();
   const [role, setRole] = useState<RoleDepot>('cours');
+  const [matiereChoisie, setMatiereChoisie] = useState('');
   const [envois, setEnvois] = useState<EtatEnvoi[]>([]);
   const [refus, setRefus] = useState<string[]>([]);
   const [ignores, setIgnores] = useState(0);
@@ -108,6 +111,12 @@ export function Fichiers() {
     if (champDossier.current) champDossier.current.value = '';
 
     const preparation = await preparer(fichiers);
+    // Matière choisie : tous les fichiers sont rangés dans « SEMESTRE n / Matière / … », comme dans un Drive.
+    const cible = d.matieres.find((m) => m.id === matiereChoisie && m.semestre);
+    if (cible?.semestre) {
+      const prefixe = prefixeMatiere(cible.nom, cible.semestre);
+      preparation.candidats = preparation.candidats.map((c) => ({ ...c, chemin: `${prefixe}${c.chemin}` }));
+    }
     setRefus(preparation.refus);
     setIgnores(preparation.ignores);
     setEnvois(
@@ -154,6 +163,8 @@ export function Fichiers() {
         sousTitre="Envoie tes cours et tes annales, autant que tu veux : l'application en tire les chapitres, les fiches, les QCM et les changements d'une version à l'autre."
       />
 
+      <MatieresManuelles />
+
       <Carte titre="Envoyer des fichiers">
         <Onglets
           libelle="Type de fichiers"
@@ -166,6 +177,16 @@ export function Fichiers() {
           ]}
         />
         <p className="mt-3 text-sm text-texte-2">{EXPLICATION[role]}</p>
+
+        <label className="mt-3 block text-xs text-texte-2">
+          Matière de ces fichiers
+          <select value={matiereChoisie} onChange={(e) => setMatiereChoisie(e.target.value)} className={STYLE_CHAMP}>
+            <option value="">Détectée automatiquement (dossiers, sinon par l'IA)</option>
+            {d.matieres.filter((m) => m.semestre).map((m) => (
+              <option key={m.id} value={m.id}>{m.nom} · semestre {m.semestre}</option>
+            ))}
+          </select>
+        </label>
 
         <input
           ref={champFichiers}

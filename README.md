@@ -322,6 +322,10 @@ Limites : les schémas « vectoriels » d'un PDF (non importés comme images) ne
 - **Jour J** : le cœur s'arrête (quelques secondes de fibrillation puis il se fige, le muscle pâlit) et l'ECG de fond fait de même : fibrillation puis ligne plate.
 - **Partiel fini** : mode « bravo » pendant deux jours (accent vert, confettis une fois, message de félicitations, cœur et ECG apaisés). Le planning reprend avec le partiel suivant.
 
+## Ajouter une matière à la main
+
+Page Fichiers → « Ajouter une matière » : un nom et un semestre, sans lien de Drive. La matière existe tout de suite (choix des matières d'un partiel, priorités, révisions voulues). Envoie ensuite ses cours et ses annales en la choisissant dans « Matière de ces fichiers » : les fichiers sont rangés dans « SEMESTRE n / Matière / … » comme dans un Drive, et l'import en tire chapitres, fiches, QCM et cours détaillés. Le planning les intègre dès que les chapitres existent.
+
 ## Coûts
 
 **Tout est gratuit par défaut** : Cloudflare (Worker et base D1), GitHub Actions (dépôt

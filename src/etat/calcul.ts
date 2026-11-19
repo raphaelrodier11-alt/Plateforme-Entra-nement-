@@ -152,7 +152,12 @@ function grouper<T>(elements: T[], cle: (e: T) => string): Map<string, T[]> {
 export function calculer(brutInitial: Brut, maintenant: number): Donnees {
   // Les questions des entraînements sur mesure rejoignent les autres, marquées « perso » (hors avancement).
   const brut: Brut = { ...brutInitial, questions: [...brutInitial.questions, ...(brutInitial.questionsPerso ?? [])] };
-  const matieres = [...brut.matieres].sort((a, b) => a.ordre - b.ordre || a.nom.localeCompare(b.nom));
+  // Matières ajoutées à la main : visibles tout de suite, fusionnées avec celles de l'import (même identifiant).
+  const existantes = new Set(brut.matieres.map((m) => m.id));
+  const manuelles = (brut.reglages[0]?.matieresManuelles ?? [])
+    .filter((m) => !existantes.has(m.id))
+    .map((m): Matiere => ({ id: m.id, nom: m.nom, ordre: 1000, semestre: m.semestre }));
+  const matieres = [...brut.matieres, ...manuelles].sort((a, b) => a.ordre - b.ordre || a.nom.localeCompare(b.nom));
   const chapitres = [...brut.chapitres].sort((a, b) => a.ordre - b.ordre || a.titre.localeCompare(b.titre));
   const reglages: Reglages = { ...REGLAGES_DEFAUT, ...brut.reglages.find((r) => r.id === 'principal') };
 
