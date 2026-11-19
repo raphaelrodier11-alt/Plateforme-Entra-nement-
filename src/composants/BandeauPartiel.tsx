@@ -2,6 +2,7 @@
  * Alerte J-7 / J-3 / J-1 à l'ouverture : le partiel approche, voici quoi
  * réviser en priorité. Se ferme jusqu'au prochain palier.
  */
+import { libelleExamen } from '../../shared/examens';
 import { Siren, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -61,7 +62,7 @@ export function BandeauPartiel() {
       <Siren size={22} className="mt-0.5 shrink-0 text-alerte" aria-hidden />
       <div className="min-w-0 flex-1 text-sm">
         <p className="font-semibold">
-          {etiquette} · {matiere?.nom ?? alerte.x.titre}
+          {etiquette} · {libelleExamen(alerte.x.titre, matiere?.nom)}
         </p>
         <p className="mt-1 text-texte-2">{conseil}</p>
         {faibles.length > 0 && (

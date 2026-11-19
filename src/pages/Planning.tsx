@@ -27,6 +27,7 @@ import {
   jourLisible,
   lundiDe,
 } from '../../shared/dates';
+import { libelleExamen } from '../../shared/examens';
 import type { AlertePlanning, Seance } from '../../shared/planning';
 import {
   CRENEAUX,
@@ -224,6 +225,7 @@ function ExamensEtCalendrier() {
   const aujourdHui = cleJour(d.maintenant);
   const [matiereId, setMatiereId] = useState(d.matieres[0]?.id ?? '');
   const [date, setDate] = useState('');
+  const [nom, setNom] = useState('');
   const [lien, setLien] = useState(d.reglages.icsUrl ?? '');
   const [motsCles, setMotsCles] = useState(d.reglages.motsClesExamen.join(', '));
   const [message, setMessage] = useState<string>();
@@ -240,12 +242,13 @@ function ExamensEtCalendrier() {
     const examen: Examen = {
       id: nouvelId(),
       matiereId,
-      titre: `Partiel ${d.matiereParId.get(matiereId)?.nom ?? ''}`.trim(),
+      titre: nom.trim().slice(0, 60) || 'Partiel',
       date,
       source: 'manuel',
     };
     await enregistrer('examens', examen);
     setDate('');
+    setNom('');
   };
 
   const relire = async () => {
@@ -352,7 +355,7 @@ function ExamensEtCalendrier() {
                   <GraduationCap size={18} className="shrink-0 text-accent-clair" aria-hidden />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">
-                      {d.matiereParId.get(x.matiereId)?.nom ?? x.titre}
+                      {libelleExamen(x.titre, d.matiereParId.get(x.matiereId)?.nom)}
                     </span>
                     <span className="chiffres block text-xs text-muet">
                       {jourLisible(x.date)} ·{' '}
@@ -376,6 +379,16 @@ function ExamensEtCalendrier() {
 
         {d.matieres.length > 0 && (
           <div className="flex flex-wrap items-end gap-2">
+            <label className="min-w-40 flex-1 text-sm">
+              <span className="mb-1 block text-xs text-muet">Nom du partiel</span>
+              <input
+                value={nom}
+                onChange={(e) => setNom(e.target.value)}
+                maxLength={60}
+                placeholder="Partiel final, CC, rattrapage…"
+                className={STYLE_CHAMP}
+              />
+            </label>
             <label className="min-w-36 flex-1 text-sm">
               <span className="mb-1 block text-xs text-muet">Matière</span>
               <select value={matiereId} onChange={(e) => setMatiereId(e.target.value)} className={STYLE_CHAMP}>

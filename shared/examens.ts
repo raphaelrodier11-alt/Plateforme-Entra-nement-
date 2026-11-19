@@ -167,3 +167,11 @@ export function composerExamenGeneral(o: OptionsExamen): ExamenCompose {
     nbInedites: choisies.filter((q) => !o.etats.has(q.id)).length,
   };
 }
+
+/** Libellé d'un partiel : son nom (« Partiel final », « CC »…) suivi de la matière si le nom ne la cite pas. */
+export function libelleExamen(titre: string | undefined, nomMatiere: string | undefined): string {
+  const nom = (titre ?? '').trim();
+  if (!nom) return nomMatiere ?? 'Partiel';
+  if (!nomMatiere || nom.toLowerCase().includes(nomMatiere.toLowerCase())) return nom;
+  return `${nom} · ${nomMatiere}`;
+}

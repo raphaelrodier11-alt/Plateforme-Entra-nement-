@@ -2,6 +2,7 @@
  * Tableau de bord : ce qu'il faut faire aujourd'hui, où j'en suis, et les
  * conseils de révision.
  */
+import { libelleExamen } from '../../shared/examens';
 import {
   ArrowRight,
   Bell,
@@ -90,7 +91,7 @@ export function Accueil() {
   const prochainExamen = examens[0];
   const message = accroche(new Date(d.maintenant), {
     prenom: d.reglages.prenom,
-    examen: prochainExamen ? { jours: joursEntre(aujourdHui, prochainExamen.date), matiere: d.matiereParId.get(prochainExamen.matiereId)?.nom ?? prochainExamen.titre } : undefined,
+    examen: prochainExamen ? { jours: joursEntre(aujourdHui, prochainExamen.date), matiere: libelleExamen(prochainExamen.titre, d.matiereParId.get(prochainExamen.matiereId)?.nom) } : undefined,
     serie: profil.series.courante,
     erreursDues: d.erreursDues.length,
   });
@@ -306,7 +307,7 @@ export function Accueil() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
-                        {d.matiereParId.get(x.matiereId)?.nom ?? x.titre}
+                        {libelleExamen(x.titre, d.matiereParId.get(x.matiereId)?.nom)}
                       </p>
                       <p className="text-xs text-muet">
                         {jours === 0 ? "Aujourd'hui" : `Dans ${jours} jour${jours > 1 ? 's' : ''}`} ·{' '}

@@ -1,4 +1,5 @@
 /** Compte à rebours avant chaque partiel, avec le plan du jour pour cette matière. */
+import { libelleExamen } from '../../shared/examens';
 import { CalendarClock, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cleJour, jourLisible, joursEntre } from '../../shared/dates';
@@ -55,7 +56,7 @@ export function CompteARebours() {
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{matiere?.nom ?? x.titre}</p>
+                  <p className="truncate text-sm font-semibold">{libelleExamen(x.titre, matiere?.nom)}</p>
                   <p className="text-xs text-muet">{jourLisible(x.date)}</p>
                   <div className="mt-2 flex items-center gap-2">
                     <div className="flex-1">
